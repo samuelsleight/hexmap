@@ -13,7 +13,7 @@ use hexx::{HexLayout, PlaneMeshBuilder, shapes::flat_rectangle};
 
 use noise::{Fbm, MultiFractal, NoiseFn, Perlin, Seedable, utils::ColorGradient};
 
-use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams};
+use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
 
 fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
     let mesh_info = PlaneMeshBuilder::new(hex_layout)
@@ -74,21 +74,21 @@ pub fn generate_world(
         height: h,
     };
 
+    let mut tiles = WorldTiles::default();
+
     commands.spawn(WorldOrigin).with_children(|origin| {
-        let mut columns = Vec::new();
+        let columns = (1..=w)
+            .map(|column| {
+                let hex = world.hex(column, 0);
 
-        for column in 1..=w {
-            let hex = world.hex(column, 0);
-
-            columns.push(
                 origin
                     .spawn((
                         WorldColumn { column },
                         Transform::from_xyz(world.layout.hex_to_world_pos(hex).x, 0., 0.),
                     ))
-                    .id(),
-            );
-        }
+                    .id()
+            })
+            .collect::<Vec<_>>();
 
         for hex in flat_rectangle([1, w, 1, h]) {
             let [x, y] = world.hex_to_xy(hex);
@@ -109,17 +109,25 @@ pub fn generate_world(
 
             let pos = world.layout.hex_to_world_pos(hex);
 
-            origin
+            let entity = origin
                 .commands_mut()
-                .entity(columns[x as usize - 1])
-                .with_child((
+                .spawn((
                     Mesh2d(mesh.clone()),
                     MeshMaterial2d(material),
                     Transform::from_xyz(0., pos.y, 0.),
-                ));
+                ))
+                .id();
+
+            origin
+                .commands_mut()
+                .entity(columns[x as usize - 1])
+                .add_child(entity);
+
+            tiles.tiles.push(entity);
         }
     });
 
     commands.remove_resource::<WorldParams>();
+    commands.insert_resource(tiles);
     commands.insert_resource(world);
 }

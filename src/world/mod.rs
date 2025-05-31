@@ -27,6 +27,11 @@ pub struct WorldParams {
     pub height: i32,
 }
 
+#[derive(Default, Resource)]
+pub struct WorldTiles {
+    pub tiles: Vec<Entity>,
+}
+
 pub struct WorldPlugin;
 
 impl WorldLayout {
@@ -47,12 +52,40 @@ impl WorldLayout {
         self.world_size().x
     }
 
-    fn world_pos_to_xy(&self, pos: Vec2) -> [i32; 2] {
+    pub fn world_pos_to_xy(&self, pos: Vec2) -> [i32; 2] {
         self.hex_to_xy(self.layout.world_pos_to_hex(pos))
     }
 
     fn xy_to_world_pos(&self, x: i32, y: i32) -> Vec2 {
         self.layout.hex_to_world_pos(self.hex(x, y))
+    }
+
+    pub fn pick_tile(&self, world_pos: Vec2, origin: Vec2) -> Hex {
+        let mut hex = self.layout.world_pos_to_hex(world_pos - origin);
+        hex.x -= 1;
+        hex.y -= 1;
+
+        hex
+    }
+}
+
+impl WorldTiles {
+    pub fn get(&self, hex: Hex, world: &WorldLayout) -> Option<Entity> {
+        let [mut x, y] = world.hex_to_xy(hex);
+
+        if x < 0 {
+            x += world.width;
+        } else if x >= world.width {
+            x -= world.width;
+        }
+
+        let index = (x * world.height + y) as usize;
+
+        if index >= self.tiles.len() {
+            None
+        } else {
+            Some(self.tiles[index])
+        }
     }
 }
 

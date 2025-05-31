@@ -1,8 +1,19 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 
-use world::{WorldLayout, WorldOrigin, WorldParams, WorldPlugin};
+use hexx::Hex;
+use world::{WorldLayout, WorldOrigin, WorldParams, WorldPlugin, WorldTiles};
 
 mod world;
+
+#[derive(Default, Resource)]
+struct MousePosition(Vec2);
+
+#[derive(Default, Resource)]
+struct HoveredHex(Option<Hex>);
+
+#[derive(Component)]
+#[require(Transform = Transform::from_xyz(0., 0., 1.))]
+struct HoverIndicator;
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
@@ -53,9 +64,9 @@ fn zoom_viewport(
 fn scroll_grid(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    grid: Single<&mut Transform, With<WorldOrigin>>,
+    origin: Single<&mut Transform, With<WorldOrigin>>,
 ) {
-    let mut transform = grid.into_inner();
+    let mut transform = origin.into_inner();
 
     let speed = 200. * time.delta_secs();
 
@@ -76,6 +87,57 @@ fn scroll_grid(
     }
 }
 
+fn mouse_position(
+    mut position: ResMut<MousePosition>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    camera: Single<(&Camera, &GlobalTransform)>,
+) {
+    let window = window.into_inner();
+    let (camera, transform) = camera.into_inner();
+
+    if let Some(cursor_position) = window
+        .cursor_position()
+        .and_then(|cursor| camera.viewport_to_world(transform, cursor).ok())
+        .map(|ray| ray.origin.truncate())
+    {
+        position.0 = cursor_position;
+    }
+}
+
+fn mouse_hover(
+    position: Res<MousePosition>,
+    world: Res<WorldLayout>,
+    mut hovered: ResMut<HoveredHex>,
+    origin: Single<&Transform, With<WorldOrigin>>,
+) {
+    let origin = origin.into_inner();
+    hovered.0 = Some(world.pick_tile(position.0, origin.translation.xy()));
+}
+
+fn hover_indicator(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    hovered: Res<HoveredHex>,
+    world: Res<WorldLayout>,
+    tiles: Res<WorldTiles>,
+    mut indicator: Query<Entity, With<HoverIndicator>>,
+) {
+    if let Some(entity) = hovered.0.and_then(|hex| tiles.get(hex, &world)) {
+        if let Ok(indicator) = indicator.single_mut() {
+            commands.entity(entity).add_child(indicator);
+        } else {
+            commands.entity(entity).with_child((
+                HoverIndicator,
+                Mesh2d(meshes.add(Circle::new(5.))),
+                MeshMaterial2d(materials.add(Color::srgb(6.25, 9.4, 9.1))),
+            ));
+        }
+    } else if let Ok(indicator) = indicator.single_mut() {
+        commands.entity(indicator).despawn();
+    }
+}
+
 pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -86,10 +148,25 @@ pub fn main() {
             ..default()
         }))
         .add_plugins(WorldPlugin)
+        .init_resource::<MousePosition>()
+        .init_resource::<HoveredHex>()
         .add_systems(Startup, (setup_camera, setup_world))
         .add_systems(
             Update,
-            (centre_camera, zoom_viewport, scroll_grid).run_if(resource_exists::<WorldLayout>),
+            (
+                mouse_position.before(mouse_hover),
+                (
+                    centre_camera,
+                    zoom_viewport,
+                    scroll_grid,
+                    (
+                        mouse_hover.run_if(resource_changed::<MousePosition>),
+                        hover_indicator.run_if(resource_changed::<HoveredHex>),
+                    )
+                        .chain(),
+                )
+                    .run_if(resource_exists::<WorldLayout>),
+            ),
         )
         .run();
 }

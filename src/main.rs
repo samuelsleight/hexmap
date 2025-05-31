@@ -33,6 +33,7 @@ struct ColumnParent {
 struct GridParams {
     layout: HexLayout,
     width: i32,
+    height: i32,
 }
 
 fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
@@ -92,62 +93,61 @@ fn setup_grid(
     let y_step = height_extent / h as f64;
 
     commands
-        .spawn((ViewportOffset, Transform::from_xyz(-550., -400., 0.)))
-        .with_children(|viewport_transform| {
-            viewport_transform
-                .spawn((GridParent, Transform::from_xyz(0., 0., 0.)))
-                .with_children(|grid_parent| {
-                    let mut columns = Vec::new();
+        .spawn((GridParent, Transform::from_xyz(0., 0., 0.)))
+        .with_children(|grid_parent| {
+            let mut columns = Vec::new();
 
-                    for column in 1..=w {
-                        let hex = Hex::from_offset_coordinates(
-                            [column, 0],
-                            OffsetHexMode::Even,
-                            HexOrientation::Flat,
-                        );
+            for column in 1..=w {
+                let hex = Hex::from_offset_coordinates(
+                    [column, 0],
+                    OffsetHexMode::Even,
+                    HexOrientation::Flat,
+                );
 
-                        columns.push(
-                            grid_parent
-                                .spawn((
-                                    ColumnParent { column },
-                                    Transform::from_xyz(layout.hex_to_world_pos(hex).x, 0., 0.),
-                                ))
-                                .id(),
-                        );
-                    }
+                columns.push(
+                    grid_parent
+                        .spawn((
+                            ColumnParent { column },
+                            Transform::from_xyz(layout.hex_to_world_pos(hex).x, 0., 0.),
+                        ))
+                        .id(),
+                );
+            }
 
-                    for hex in flat_rectangle([1, w, 1, h]) {
-                        let [x, y] =
-                            hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat);
+            for hex in flat_rectangle([1, w, 1, h]) {
+                let [x, y] = hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat);
 
-                        let mut current_height = y_step * y as f64;
-                        let current_angle = x_step * x as f64;
+                let mut current_height = y_step * y as f64;
+                let current_angle = x_step * x as f64;
 
-                        if y % 2 == 0 {
-                            current_height += y_step * 0.5;
-                        }
+                if y % 2 == 0 {
+                    current_height += y_step * 0.5;
+                }
 
-                        let point_x = current_angle.to_radians().cos();
-                        let point_z = current_angle.to_radians().sin();
+                let point_x = current_angle.to_radians().cos();
+                let point_z = current_angle.to_radians().sin();
 
-                        let value = noise.get([point_x, current_height, point_z]);
-                        let [r, g, b, _] = colours.get_color(value);
-                        let material = materials.add(Color::srgb_u8(r, g, b));
+                let value = noise.get([point_x, current_height, point_z]);
+                let [r, g, b, _] = colours.get_color(value);
+                let material = materials.add(Color::srgb_u8(r, g, b));
 
-                        let pos = layout.hex_to_world_pos(hex);
-                        grid_parent
-                            .commands_mut()
-                            .entity(columns[x as usize - 1])
-                            .with_child((
-                                Mesh2d(mesh.clone()),
-                                MeshMaterial2d(material),
-                                Transform::from_xyz(0., pos.y, 0.),
-                            ));
-                    }
-                });
+                let pos = layout.hex_to_world_pos(hex);
+                grid_parent
+                    .commands_mut()
+                    .entity(columns[x as usize - 1])
+                    .with_child((
+                        Mesh2d(mesh.clone()),
+                        MeshMaterial2d(material),
+                        Transform::from_xyz(0., pos.y, 0.),
+                    ));
+            }
         });
 
-    commands.insert_resource(GridParams { layout, width: w });
+    commands.insert_resource(GridParams {
+        layout,
+        width: w,
+        height: h,
+    });
 }
 
 fn get_scale(projection: &mut Projection) -> &mut f32 {
@@ -156,6 +156,19 @@ fn get_scale(projection: &mut Projection) -> &mut f32 {
     }
 
     panic!("Unexpected projection")
+}
+
+fn centre_camera(grid_params: Res<GridParams>, camera: Single<&mut Transform, With<Camera>>) {
+    let world_bounds = grid_params
+        .layout
+        .hex_to_world_pos(Hex::from_offset_coordinates(
+            [grid_params.width, grid_params.height],
+            OffsetHexMode::Even,
+            HexOrientation::Flat,
+        ));
+
+    let mut transform = camera.into_inner();
+    transform.translation = (world_bounds / 2.).extend(0.);
 }
 
 fn zoom_viewport(
@@ -265,6 +278,13 @@ pub fn main() {
             ..default()
         }))
         .add_systems(Startup, (setup_camera, setup_grid))
-        .add_systems(Update, (zoom_viewport, (scroll_grid, wrap_grid).chain()))
+        .add_systems(
+            Update,
+            (
+                centre_camera,
+                zoom_viewport,
+                (scroll_grid, wrap_grid).chain(),
+            ),
+        )
         .run();
 }

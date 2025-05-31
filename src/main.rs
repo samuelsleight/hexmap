@@ -5,18 +5,34 @@ use std::{
 
 use bevy::{
     asset::RenderAssetUsages,
-    platform::collections::HashMap,
     prelude::*,
     render::mesh::{Indices, PrimitiveTopology},
 };
 
-use hexx::{Hex, HexLayout, HexOrientation, PlaneMeshBuilder, shapes::flat_rectangle};
+use hexx::{
+    Hex, HexLayout, HexOrientation, OffsetHexMode, PlaneMeshBuilder, shapes::flat_rectangle,
+};
+
 use noise::{Fbm, MultiFractal, NoiseFn, Perlin, Seedable, utils::ColorGradient};
 
-#[derive(Debug, Resource)]
-struct HexGrid {
-    entities: HashMap<Hex, Entity>,
+#[derive(Component)]
+#[require(InheritedVisibility)]
+struct ViewportOffset;
+
+#[derive(Component)]
+#[require(InheritedVisibility)]
+struct GridParent;
+
+#[derive(Component)]
+#[require(InheritedVisibility)]
+struct ColumnParent {
+    column: i32,
+}
+
+#[derive(Resource)]
+struct GridParams {
     layout: HexLayout,
+    width: i32,
 }
 
 fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
@@ -43,7 +59,7 @@ fn get_noise() -> impl NoiseFn<f64, 3> {
     Fbm::<Perlin>::default()
         .set_seed(seed as u32)
         .set_lacunarity(2.01010101)
-        .set_persistence(0.25)
+        .set_persistence(0.20)
         .set_octaves(8)
 }
 
@@ -56,9 +72,7 @@ fn setup_grid(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let layout = HexLayout::flat()
-        .with_hex_size(4.)
-        .with_origin(Vec2::splat(-400.));
+    let layout = HexLayout::flat().with_hex_size(6.);
 
     let hex_rect = layout.rect_size();
 
@@ -68,46 +82,148 @@ fn setup_grid(
 
     let colours = ColorGradient::default().build_terrain_gradient();
 
-    let w = 130.;
-    let h = 80.;
+    let w = 130i32;
+    let h = 80i32;
 
     let angle_extent = 360.0;
-    let height_extent = (2. * PI) * (h / w) * (hex_rect.x as f64 / hex_rect.y as f64);
+    let height_extent = (2. * PI) * (h as f64 / w as f64) * (hex_rect.x as f64 / hex_rect.y as f64);
 
-    let x_step = angle_extent / w;
-    let y_step = height_extent / h;
+    let x_step = angle_extent / w as f64;
+    let y_step = height_extent / h as f64;
 
-    let entities = flat_rectangle([1, w as i32, 1, h as i32])
-        .map(|hex| {
-            let [x, y] = hex.to_offset_coordinates(hexx::OffsetHexMode::Even, HexOrientation::Flat);
+    commands
+        .spawn((ViewportOffset, Transform::from_xyz(-550., -400., 0.)))
+        .with_children(|viewport_transform| {
+            viewport_transform
+                .spawn((GridParent, Transform::from_xyz(0., 0., 0.)))
+                .with_children(|grid_parent| {
+                    let mut columns = Vec::new();
 
-            let mut current_height = y_step * y as f64;
-            let current_angle = x_step * x as f64;
+                    for column in 1..=w {
+                        let hex = Hex::from_offset_coordinates(
+                            [column, 0],
+                            OffsetHexMode::Even,
+                            HexOrientation::Flat,
+                        );
 
-            if y % 2 == 0 {
-                current_height += y_step * 0.5;
-            }
+                        columns.push(
+                            grid_parent
+                                .spawn((
+                                    ColumnParent { column },
+                                    Transform::from_xyz(layout.hex_to_world_pos(hex).x, 0., 0.),
+                                ))
+                                .id(),
+                        );
+                    }
 
-            let point_x = current_angle.to_radians().cos();
-            let point_z = current_angle.to_radians().sin();
+                    for hex in flat_rectangle([1, w, 1, h]) {
+                        let [x, y] =
+                            hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat);
 
-            let value = noise.get([point_x, current_height, point_z]);
-            let [r, g, b, _] = colours.get_color(value);
-            let material = materials.add(Color::srgb_u8(r, g, b));
+                        let mut current_height = y_step * y as f64;
+                        let current_angle = x_step * x as f64;
 
-            let pos = layout.hex_to_world_pos(hex);
-            let entity = commands
-                .spawn((
-                    Mesh2d(mesh.clone()),
-                    MeshMaterial2d(material),
-                    Transform::from_xyz(pos.x, pos.y, 0.0),
-                ))
-                .id();
-            (hex, entity)
-        })
-        .collect();
+                        if y % 2 == 0 {
+                            current_height += y_step * 0.5;
+                        }
 
-    commands.insert_resource(HexGrid { entities, layout })
+                        let point_x = current_angle.to_radians().cos();
+                        let point_z = current_angle.to_radians().sin();
+
+                        let value = noise.get([point_x, current_height, point_z]);
+                        let [r, g, b, _] = colours.get_color(value);
+                        let material = materials.add(Color::srgb_u8(r, g, b));
+
+                        let pos = layout.hex_to_world_pos(hex);
+                        grid_parent
+                            .commands_mut()
+                            .entity(columns[x as usize - 1])
+                            .with_child((
+                                Mesh2d(mesh.clone()),
+                                MeshMaterial2d(material),
+                                Transform::from_xyz(0., pos.y, 0.),
+                            ));
+                    }
+                });
+        });
+
+    commands.insert_resource(GridParams { layout, width: w });
+}
+
+fn scroll_grid(
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    grid: Single<&mut Transform, With<GridParent>>,
+) {
+    let mut transform = grid.into_inner();
+
+    let speed = 200. * time.delta_secs();
+
+    if keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
+        transform.translation.y += speed;
+    }
+
+    if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
+        transform.translation.y -= speed;
+    }
+
+    if keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
+        transform.translation.x += speed;
+    }
+
+    if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
+        transform.translation.x -= speed;
+    }
+}
+
+fn wrap_grid(
+    grid_params: Res<GridParams>,
+    grid: Single<&mut Transform, (With<GridParent>, Changed<Transform>)>,
+    columns: Query<(&ColumnParent, &mut Transform), Without<GridParent>>,
+) {
+    let mut grid_transform = grid.into_inner();
+    let layout = &grid_params.layout;
+
+    // Compute the width of the world in pixel coordinates
+    let world_width = layout
+        .hex_to_world_pos(Hex::from_offset_coordinates(
+            [grid_params.width, 0],
+            OffsetHexMode::Even,
+            HexOrientation::Flat,
+        ))
+        .x;
+
+    // Ensure the grid offset is between 0 and the width of the world
+    if grid_transform.translation.x < 0. {
+        grid_transform.translation.x += world_width
+    }
+
+    if grid_transform.translation.x > world_width {
+        grid_transform.translation.x -= world_width
+    }
+
+    // Compute the distance in hexes between the grid offset and the right edge of the world
+    let hex_offset = grid_params.width
+        - layout
+            .world_pos_to_hex(grid_transform.translation.xy())
+            .to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat)[0];
+
+    // Wrap any column past the right edge of the world over to the left
+    for (column, mut col_transform) in columns {
+        let wrapped_column = if column.column > hex_offset {
+            column.column - grid_params.width
+        } else {
+            column.column
+        };
+
+        let hex = Hex::from_offset_coordinates(
+            [wrapped_column, 0],
+            OffsetHexMode::Even,
+            HexOrientation::Flat,
+        );
+
+        col_transform.translation.x = layout.hex_to_world_pos(hex).x;
+    }
 }
 
 pub fn main() {
@@ -120,5 +236,6 @@ pub fn main() {
             ..default()
         }))
         .add_systems(Startup, (setup_camera, setup_grid))
+        .add_systems(Update, (scroll_grid, wrap_grid).chain())
         .run();
 }

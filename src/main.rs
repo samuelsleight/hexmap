@@ -150,6 +150,35 @@ fn setup_grid(
     commands.insert_resource(GridParams { layout, width: w });
 }
 
+fn get_scale(projection: &mut Projection) -> &mut f32 {
+    if let Projection::Orthographic(ortho) = projection {
+        return &mut ortho.scale;
+    }
+
+    panic!("Unexpected projection")
+}
+
+fn zoom_viewport(
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    camera: Single<&mut Projection, With<Camera>>,
+) {
+    let mut projection = camera.into_inner();
+    let scale = get_scale(&mut projection);
+
+    let speed = 2. * time.delta_secs();
+
+    let (min_scale, max_scale) = (0.1, 1.5);
+
+    if keyboard_input.pressed(KeyCode::KeyQ) {
+        *scale = f32::max(min_scale, *scale - speed);
+    }
+
+    if keyboard_input.pressed(KeyCode::KeyZ) {
+        *scale = f32::min(max_scale, *scale + speed);
+    }
+}
+
 fn scroll_grid(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -160,19 +189,19 @@ fn scroll_grid(
     let speed = 200. * time.delta_secs();
 
     if keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
-        transform.translation.y += speed;
-    }
-
-    if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
         transform.translation.y -= speed;
     }
 
+    if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
+        transform.translation.y += speed;
+    }
+
     if keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
-        transform.translation.x += speed;
+        transform.translation.x -= speed;
     }
 
     if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
-        transform.translation.x -= speed;
+        transform.translation.x += speed;
     }
 }
 
@@ -236,6 +265,6 @@ pub fn main() {
             ..default()
         }))
         .add_systems(Startup, (setup_camera, setup_grid))
-        .add_systems(Update, (scroll_grid, wrap_grid).chain())
+        .add_systems(Update, (zoom_viewport, (scroll_grid, wrap_grid).chain()))
         .run();
 }

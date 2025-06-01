@@ -1,6 +1,22 @@
 use bevy::prelude::*;
 
-use super::{WorldColumn, WorldLayout, WorldOrigin};
+use super::{OnHex, WorldColumn, WorldLayout, WorldOrigin, WorldTiles};
+
+pub fn parent_grid_objects(
+    mut commands: Commands,
+    world: Res<WorldLayout>,
+    tiles: Res<WorldTiles>,
+    objects: Query<(Entity, &OnHex, &mut Visibility), Changed<OnHex>>,
+) {
+    for (entity, hex, mut visibility) in objects {
+        if let Some(tile) = hex.0.and_then(|hex| tiles.get(hex, &world)) {
+            *visibility = Visibility::Inherited;
+            commands.entity(entity).insert(ChildOf(tile));
+        } else {
+            *visibility = Visibility::Hidden;
+        }
+    }
+}
 
 pub fn wrap_grid(
     world: Res<WorldLayout>,

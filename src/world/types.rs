@@ -2,6 +2,10 @@ use bevy::prelude::*;
 
 use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
+#[derive(Default, Component)]
+#[require(Visibility = Visibility::Hidden)]
+pub struct OnHex(pub Option<Hex>);
+
 #[derive(Component)]
 #[require(InheritedVisibility, Transform)]
 pub struct WorldOrigin;

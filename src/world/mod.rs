@@ -16,7 +16,8 @@ impl Plugin for WorldPlugin {
         )
         .add_systems(
             PostUpdate,
-            systems::wrap_grid.run_if(resource_exists::<WorldLayout>),
+            (systems::parent_grid_objects, systems::wrap_grid)
+                .run_if(resource_exists::<WorldLayout>),
         );
     }
 }

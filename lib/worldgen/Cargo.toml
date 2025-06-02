@@ -1,0 +1,9 @@
+[package]
+name = "hexmap_worldgen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hexx = "0.20.0"
+noise = {version = "0.9.0", features = ["images"] }
+rand = "0.9.1"

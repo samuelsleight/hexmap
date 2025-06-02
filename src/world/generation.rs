@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use bevy::{
     asset::RenderAssetUsages,
     platform::collections::{HashMap, hash_map::Entry},
@@ -7,11 +5,7 @@ use bevy::{
     render::mesh::{Indices, PrimitiveTopology},
 };
 
-use hexx::{HexLayout, PlaneMeshBuilder, shapes::flat_rectangle};
-
-use noise::{Fbm, MultiFractal, NoiseFn, Perlin, Seedable, utils::ColorGradient};
-
-use rand::{Rng, rng};
+use hexx::{HexLayout, PlaneMeshBuilder};
 
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
 
@@ -30,50 +24,30 @@ fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
     .with_inserted_indices(Indices::U16(mesh_info.indices))
 }
 
-fn get_noise() -> impl NoiseFn<f64, 3> {
-    Fbm::<Perlin>::default()
-        .set_seed(rng().random())
-        .set_lacunarity(1.11010101)
-        .set_persistence(0.10)
-        .set_octaves(10)
-}
-
 pub fn generate_world(
     mut commands: Commands,
     params: Res<WorldParams>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let layout = HexLayout::flat().with_hex_size(6.);
-
-    let hex_rect = layout.rect_size();
-
-    let mesh = meshes.add(hexagonal_plane(&layout));
-
-    let noise = get_noise();
-
-    let colours = ColorGradient::default().build_terrain_gradient();
-    let mut material_cache: HashMap<_, Handle<ColorMaterial>> = HashMap::new();
-
-    let w = params.width;
-    let h = params.height;
-
-    let angle_extent = 360.0;
-    let height_extent = (2. * PI) * (h as f64 / w as f64) * (hex_rect.x as f64 / hex_rect.y as f64);
-
-    let x_step = angle_extent / w as f64;
-    let y_step = height_extent / h as f64;
+    let generated_world = hexmap_worldgen::generate_world(&hexmap_worldgen::WorldParams {
+        width: params.width,
+        height: params.height,
+    });
 
     let world = WorldLayout {
-        layout,
-        width: w,
-        height: h,
+        layout: generated_world.layout().clone().with_hex_size(6.),
+        width: generated_world.width(),
+        height: generated_world.height(),
     };
 
     let mut tiles = WorldTiles::default();
 
+    let mut material_cache = HashMap::<[u8; 4], Handle<ColorMaterial>>::new();
+    let mesh = meshes.add(hexagonal_plane(&world.layout));
+
     commands.spawn(WorldOrigin).with_children(|origin| {
-        let columns = (1..=w)
+        let columns = (1..=world.width)
             .map(|column| {
                 let hex = world.hex(column, 0);
 
@@ -86,21 +60,8 @@ pub fn generate_world(
             })
             .collect::<Vec<_>>();
 
-        for hex in flat_rectangle([1, w, 1, h]) {
-            let [x, y] = world.hex_to_xy(hex);
-
-            let mut current_height = y_step * y as f64;
-            let current_angle = x_step * x as f64;
-
-            if y % 2 == 0 {
-                current_height += y_step * 0.5;
-            }
-
-            let point_x = current_angle.to_radians().cos();
-            let point_z = current_angle.to_radians().sin();
-
-            let value = noise.get([point_x, current_height, point_z]);
-            let [r, g, b, a] = colours.get_color(value);
+        for (hex, &[r, g, b, a]) in generated_world.tiles() {
+            let [x, _] = world.hex_to_xy(hex);
 
             let material = match material_cache.entry([r, g, b, a]) {
                 Entry::Occupied(material) => material.get().clone(),

@@ -2,12 +2,14 @@
 name = "hexmap"
 version = "0.1.0"
 edition = "2024"
+
+[workspace]
 resolver = "2"
+members = ["lib/worldgen"]
 
 [dependencies]
+hexmap_worldgen = {path = "lib/worldgen"}
 hexx = "0.20.0"
-noise = {version = "0.9.0", features = ["images"] }
-rand = "0.9.1"
 
 [dependencies.bevy]
 version = "0.16.0"

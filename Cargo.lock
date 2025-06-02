@@ -2024,6 +2024,14 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "getrandom 0.3.3",
+ "hexmap_worldgen",
+ "hexx",
+]
+
+[[package]]
+name = "hexmap_worldgen"
+version = "0.1.0"
+dependencies = [
  "hexx",
  "noise",
  "rand 0.9.1",

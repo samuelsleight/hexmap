@@ -12,6 +12,8 @@ mod world;
 pub struct WorldParams {
     pub width: i32,
     pub height: i32,
+
+    pub scale_factor: f64,
 }
 
 fn get_noise_fn() -> impl NoiseFn<f64, 3> {
@@ -19,15 +21,18 @@ fn get_noise_fn() -> impl NoiseFn<f64, 3> {
         .set_seed(rng().random())
         .set_lacunarity(1.91010101)
         .set_persistence(0.40)
-        .set_octaves(18)
+        .set_octaves(12)
 }
 
 pub fn generate_world(params: &WorldParams) -> GeneratedWorld<[u8; 4]> {
     let layout = HexLayout::flat().with_hex_size(2.);
     let hex_rect = layout.rect_size();
 
+    let scale = 1. / params.scale_factor;
+
     let angle_extent = 360.0;
     let height_extent = (2. * PI)
+        * scale
         * (params.height as f64 / params.width as f64)
         * (hex_rect.x as f64 / hex_rect.y as f64);
 
@@ -48,8 +53,8 @@ pub fn generate_world(params: &WorldParams) -> GeneratedWorld<[u8; 4]> {
                 current_height += y_step * 0.5;
             }
 
-            let point_x = current_angle.to_radians().cos();
-            let point_z = current_angle.to_radians().sin();
+            let point_x = current_angle.to_radians().cos() * scale;
+            let point_z = current_angle.to_radians().sin() * scale;
 
             let value = noise.get([point_x, current_height, point_z]);
             colours.get_color(value)

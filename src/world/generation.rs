@@ -33,6 +33,7 @@ pub fn generate_world(
     let generated_world = hexmap_worldgen::generate_world(&hexmap_worldgen::WorldParams {
         width: params.width,
         height: params.height,
+        scale_factor: params.scale_factor,
     });
 
     let world = WorldLayout {
@@ -60,34 +61,30 @@ pub fn generate_world(
             })
             .collect::<Vec<_>>();
 
-        for (hex, &[r, g, b, a]) in generated_world.tiles() {
-            let [x, _] = world.hex_to_xy(hex);
+        tiles.tiles = generated_world
+            .tiles()
+            .map(|(hex, &[r, g, b, a])| {
+                let material = match material_cache.entry([r, g, b, a]) {
+                    Entry::Occupied(material) => material.get().clone(),
+                    Entry::Vacant(vacant) => vacant
+                        .insert(materials.add(Color::srgb_u8(r, g, b)))
+                        .clone(),
+                };
 
-            let material = match material_cache.entry([r, g, b, a]) {
-                Entry::Occupied(material) => material.get().clone(),
-                Entry::Vacant(vacant) => vacant
-                    .insert(materials.add(Color::srgb_u8(r, g, b)))
-                    .clone(),
-            };
+                let [x, _] = world.hex_to_xy(hex);
+                let pos = world.layout.hex_to_world_pos(hex);
 
-            let pos = world.layout.hex_to_world_pos(hex);
-
-            let entity = origin
-                .commands_mut()
-                .spawn((
-                    Mesh2d(mesh.clone()),
-                    MeshMaterial2d(material),
-                    Transform::from_xyz(0., pos.y, 0.),
-                ))
-                .id();
-
-            origin
-                .commands_mut()
-                .entity(columns[x as usize - 1])
-                .add_child(entity);
-
-            tiles.tiles.push(entity);
-        }
+                origin
+                    .commands_mut()
+                    .spawn((
+                        Mesh2d(mesh.clone()),
+                        MeshMaterial2d(material),
+                        Transform::from_xyz(0., pos.y, 0.),
+                        ChildOf(columns[x as usize - 1]),
+                    ))
+                    .id()
+            })
+            .collect()
     });
 
     commands.remove_resource::<WorldParams>();

@@ -23,8 +23,9 @@ struct SelectionIndicator;
 fn setup_world(mut commands: Commands) {
     // Request the world generation
     commands.insert_resource(WorldParams {
-        width: 150,
-        height: 90,
+        width: 170,
+        height: 100,
+        scale_factor: 1.7,
     });
 
     // Spawn some global indicators

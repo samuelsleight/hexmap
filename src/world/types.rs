@@ -27,6 +27,7 @@ pub struct WorldLayout {
 pub struct WorldParams {
     pub width: i32,
     pub height: i32,
+    pub scale_factor: f64,
 }
 
 #[derive(Default, Resource)]

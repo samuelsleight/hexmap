@@ -5,6 +5,7 @@ use std::{
 
 use bevy::{
     asset::RenderAssetUsages,
+    platform::collections::{HashMap, hash_map::Entry},
     prelude::*,
     render::mesh::{Indices, PrimitiveTopology},
 };
@@ -58,6 +59,7 @@ pub fn generate_world(
     let noise = get_noise();
 
     let colours = ColorGradient::default().build_terrain_gradient();
+    let mut material_cache: HashMap<_, Handle<ColorMaterial>> = HashMap::new();
 
     let w = params.width;
     let h = params.height;
@@ -104,8 +106,14 @@ pub fn generate_world(
             let point_z = current_angle.to_radians().sin();
 
             let value = noise.get([point_x, current_height, point_z]);
-            let [r, g, b, _] = colours.get_color(value);
-            let material = materials.add(Color::srgb_u8(r, g, b));
+            let [r, g, b, a] = colours.get_color(value);
+
+            let material = match material_cache.entry([r, g, b, a]) {
+                Entry::Occupied(material) => material.get().clone(),
+                Entry::Vacant(vacant) => vacant
+                    .insert(materials.add(Color::srgb_u8(r, g, b)))
+                    .clone(),
+            };
 
             let pos = world.layout.hex_to_world_pos(hex);
 

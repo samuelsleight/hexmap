@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::pipelined_rendering::PipelinedRenderingPlugin};
+use bevy::prelude::*;
 
 use camera::CameraPlugin;
 use input::{InputPlugin, MousePosition};
@@ -77,18 +77,14 @@ fn indicators(
 
 pub fn main() {
     App::new()
-        .add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        resolution: (1_000.0, 1_000.0).into(),
-                        ..default()
-                    }),
-                    ..default()
-                })
-                .build()
-                .disable::<PipelinedRenderingPlugin>(),
-        )
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: (1_000.0, 1_000.0).into(),
+                present_mode: bevy::window::PresentMode::Immediate,
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugins(WorldPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(InputPlugin)

@@ -1,6 +1,9 @@
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
 use super::{OnHex, WorldColumn, WorldLayout, WorldOrigin, WorldTiles};
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GridUpdate;
 
 pub fn parent_grid_objects(
     mut commands: Commands,

@@ -42,52 +42,50 @@ pub fn generate_world(
         height: generated_world.height(),
     };
 
-    let mut tiles = WorldTiles::default();
-
     let mut material_cache = HashMap::<[u8; 4], Handle<ColorMaterial>>::new();
     let mesh = meshes.add(hexagonal_plane(&world.layout));
 
-    commands.spawn(WorldOrigin).with_children(|origin| {
-        let columns = (1..=world.width)
-            .map(|column| {
-                let hex = world.hex(column, 0);
+    let origin = commands.spawn(WorldOrigin).id();
 
-                origin
-                    .spawn((
-                        WorldColumn { column },
-                        Transform::from_xyz(world.layout.hex_to_world_pos(hex).x, 0., 0.),
-                    ))
-                    .id()
-            })
-            .collect::<Vec<_>>();
+    let columns = (1..=world.width)
+        .map(|column| {
+            let hex = world.hex(column, 0);
 
-        tiles.tiles = generated_world
-            .tiles()
-            .map(|(hex, &[r, g, b, a])| {
-                let material = match material_cache.entry([r, g, b, a]) {
-                    Entry::Occupied(material) => material.get().clone(),
-                    Entry::Vacant(vacant) => vacant
-                        .insert(materials.add(Color::srgb_u8(r, g, b)))
-                        .clone(),
-                };
+            commands
+                .spawn((
+                    WorldColumn { column },
+                    Transform::from_xyz(world.layout.hex_to_world_pos(hex).x, 0., 0.),
+                    ChildOf(origin),
+                ))
+                .id()
+        })
+        .collect::<Vec<_>>();
 
-                let [x, _] = world.hex_to_xy(hex);
-                let pos = world.layout.hex_to_world_pos(hex);
+    let tiles = generated_world
+        .tiles()
+        .map(|(hex, &[r, g, b, a])| {
+            let material = match material_cache.entry([r, g, b, a]) {
+                Entry::Occupied(material) => material.get().clone(),
+                Entry::Vacant(vacant) => vacant
+                    .insert(materials.add(Color::srgb_u8(r, g, b)))
+                    .clone(),
+            };
 
-                origin
-                    .commands_mut()
-                    .spawn((
-                        Mesh2d(mesh.clone()),
-                        MeshMaterial2d(material),
-                        Transform::from_xyz(0., pos.y, 0.),
-                        ChildOf(columns[x as usize - 1]),
-                    ))
-                    .id()
-            })
-            .collect()
-    });
+            let [x, _] = world.hex_to_xy(hex);
+            let pos = world.layout.hex_to_world_pos(hex);
+
+            commands
+                .spawn((
+                    Mesh2d(mesh.clone()),
+                    MeshMaterial2d(material),
+                    Transform::from_xyz(0., pos.y, 0.),
+                    ChildOf(columns[x as usize - 1]),
+                ))
+                .id()
+        })
+        .collect();
 
     commands.remove_resource::<WorldParams>();
-    commands.insert_resource(tiles);
+    commands.insert_resource(WorldTiles { tiles });
     commands.insert_resource(world);
 }

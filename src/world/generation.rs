@@ -1,7 +1,4 @@
-use std::{
-    f64::consts::PI,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::f64::consts::PI;
 
 use bevy::{
     asset::RenderAssetUsages,
@@ -13,6 +10,8 @@ use bevy::{
 use hexx::{HexLayout, PlaneMeshBuilder, shapes::flat_rectangle};
 
 use noise::{Fbm, MultiFractal, NoiseFn, Perlin, Seedable, utils::ColorGradient};
+
+use rand::{Rng, rng};
 
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
 
@@ -32,16 +31,11 @@ fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
 }
 
 fn get_noise() -> impl NoiseFn<f64, 3> {
-    let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
     Fbm::<Perlin>::default()
-        .set_seed(seed as u32)
-        .set_lacunarity(2.01010101)
-        .set_persistence(0.20)
-        .set_octaves(8)
+        .set_seed(rng().random())
+        .set_lacunarity(1.11010101)
+        .set_persistence(0.10)
+        .set_octaves(10)
 }
 
 pub fn generate_world(

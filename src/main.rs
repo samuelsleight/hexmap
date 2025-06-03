@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use rand::{Rng, distr::Uniform};
+
 use camera::CameraPlugin;
 use input::{InputPlugin, MousePosition};
 use profiling::ProfilingPlugin;
@@ -33,6 +35,34 @@ fn setup_world(mut commands: Commands) {
     // Spawn some global indicators
     commands.spawn(HoverIndicator);
     commands.spawn(SelectionIndicator);
+}
+
+fn spawn_some_squares(
+    mut commands: Commands,
+    world: Res<WorldLayout>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let mesh = meshes.add(Rectangle::new(6., 6.));
+
+    let colours = [
+        materials.add(ColorMaterial::from_color(Color::srgb(1., 0., 0.))),
+        materials.add(ColorMaterial::from_color(Color::srgb(1., 1., 0.))),
+        materials.add(ColorMaterial::from_color(Color::srgb(1., 0., 1.))),
+        materials.add(ColorMaterial::from_color(Color::srgb(0., 1., 1.))),
+    ];
+
+    let mut rng = rand::rng();
+    let x_dist = Uniform::new(0, 170).unwrap();
+    let y_dist = Uniform::new(0, 100).unwrap();
+
+    for i in 0..25000 {
+        commands.spawn((
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(colours[i % colours.len()].clone()),
+            OnHex(Some(world.hex(rng.sample(x_dist), rng.sample(y_dist)))),
+        ));
+    }
 }
 
 fn mouse_hover(
@@ -95,12 +125,15 @@ pub fn main() {
         .add_systems(Startup, setup_world)
         .add_systems(
             Update,
-            ((
-                mouse_hover.run_if(resource_changed::<MousePosition>),
-                mouse_press,
-                indicators,
-            )
-                .run_if(resource_exists::<WorldLayout>),),
+            (
+                (
+                    mouse_hover.run_if(resource_changed::<MousePosition>),
+                    mouse_press,
+                    indicators,
+                )
+                    .run_if(resource_exists::<WorldLayout>),
+                spawn_some_squares.run_if(resource_added::<WorldLayout>),
+            ),
         )
         .run();
 }

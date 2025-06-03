@@ -2,10 +2,12 @@ use bevy::prelude::*;
 
 use camera::CameraPlugin;
 use input::{InputPlugin, MousePosition};
+use profiling::ProfilingPlugin;
 use world::{OnHex, WorldLayout, WorldOrigin, WorldParams, WorldPlugin};
 
 mod camera;
 mod input;
+mod profiling;
 mod world;
 
 #[derive(Default, Component)]
@@ -89,9 +91,7 @@ pub fn main() {
             }),
             ..default()
         }))
-        .add_plugins(WorldPlugin)
-        .add_plugins(CameraPlugin)
-        .add_plugins(InputPlugin)
+        .add_plugins((ProfilingPlugin, WorldPlugin, CameraPlugin, InputPlugin))
         .add_systems(Startup, setup_world)
         .add_systems(
             Update,

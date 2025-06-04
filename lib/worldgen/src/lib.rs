@@ -1,10 +1,10 @@
 use std::f64::consts::PI;
 
 use hexx::{HexLayout, HexOrientation, OffsetHexMode, shapes::flat_rectangle};
-use noise::{Fbm, MultiFractal, NoiseFn, Perlin, Seedable, utils::ColorGradient};
+use noise::{Add, Fbm, MultiFractal, NoiseFn, Perlin, RidgedMulti, ScaleBias, Seedable};
 use rand::{Rng, rng};
 
-pub use world::GeneratedWorld;
+pub use world::{GeneratedWorld, TerrainType};
 
 mod world;
 
@@ -12,19 +12,78 @@ mod world;
 pub struct WorldParams {
     pub width: i32,
     pub height: i32,
-
     pub scale_factor: f64,
 }
 
-fn get_noise_fn() -> impl NoiseFn<f64, 3> {
-    Fbm::<Perlin>::default()
-        .set_seed(rng().random())
-        .set_lacunarity(1.91010101)
-        .set_persistence(0.40)
-        .set_octaves(12)
+impl WorldParams {
+    fn get_terrain(&self, value: f64) -> TerrainType {
+        let to_range = |value| (value / 1.67) - 0.4;
+
+        let value = to_range(value + 1.);
+
+        let ocean_percentage = 0.42;
+        let mountain_percentage = 0.35;
+
+        let land_threshold = to_range(2. * ocean_percentage);
+        let mountain_threshold = to_range(2. * (1. - mountain_percentage));
+
+        if value <= land_threshold {
+            let percentage = value / land_threshold;
+
+            if percentage < 0.3 {
+                TerrainType::DeepOcean
+            } else if percentage < 0.8 {
+                TerrainType::ShallowOcean
+            } else {
+                TerrainType::Coast
+            }
+        } else if value <= mountain_threshold {
+            let percentage = (value - land_threshold) / (mountain_threshold - land_threshold);
+
+            if percentage < 0.075 {
+                TerrainType::Beach
+            } else if percentage < 0.6 {
+                TerrainType::Plains
+            } else {
+                TerrainType::Hills
+            }
+        } else {
+            let percentage = (value - mountain_threshold) / (0.6 - mountain_threshold);
+
+            if percentage < 0.25 {
+                TerrainType::LowMountains
+            } else if percentage < 0.6 {
+                TerrainType::HighMountains
+            } else {
+                TerrainType::Peaks
+            }
+        }
+    }
 }
 
-pub fn generate_world(params: &WorldParams) -> GeneratedWorld<[u8; 4]> {
+fn get_noise_fn() -> impl NoiseFn<f64, 3> {
+    let seed = rng().random();
+
+    let base = Fbm::<Perlin>::default()
+        .set_seed(seed)
+        .set_lacunarity(1.91010101)
+        .set_persistence(0.40)
+        .set_octaves(12);
+
+    let ridged = RidgedMulti::<Perlin>::default()
+        .set_seed(seed + 1)
+        .set_frequency(0.9)
+        .set_lacunarity(2.11010101)
+        .set_persistence(0.60)
+        .set_octaves(5);
+
+    Add::new(
+        ScaleBias::new(base).set_scale(0.6),
+        ScaleBias::new(ridged).set_scale(0.4),
+    )
+}
+
+pub fn generate_world(params: &WorldParams) -> GeneratedWorld {
     let layout = HexLayout::flat().with_hex_size(2.);
     let hex_rect = layout.rect_size();
 
@@ -40,7 +99,6 @@ pub fn generate_world(params: &WorldParams) -> GeneratedWorld<[u8; 4]> {
     let y_step = height_extent / params.height as f64;
 
     let noise = get_noise_fn();
-    let colours = ColorGradient::default().build_terrain_gradient();
 
     let vec = flat_rectangle([1, params.width, 1, params.height])
         .map(|hex| {
@@ -57,7 +115,7 @@ pub fn generate_world(params: &WorldParams) -> GeneratedWorld<[u8; 4]> {
             let point_z = current_angle.to_radians().sin() * scale;
 
             let value = noise.get([point_x, current_height, point_z]);
-            colours.get_color(value)
+            params.get_terrain(value)
         })
         .collect();
 

@@ -29,7 +29,7 @@ fn setup_world(mut commands: Commands) {
     commands.insert_resource(WorldParams {
         width: 170,
         height: 100,
-        scale_factor: 1.7,
+        scale_factor: 1.6,
     });
 
     // Spawn some global indicators
@@ -56,7 +56,7 @@ fn spawn_some_squares(
     let x_dist = Uniform::new(0, 170).unwrap();
     let y_dist = Uniform::new(0, 100).unwrap();
 
-    for i in 0..25000 {
+    for i in 0..25 {
         commands.spawn((
             Mesh2d(mesh.clone()),
             MeshMaterial2d(colours[i % colours.len()].clone()),

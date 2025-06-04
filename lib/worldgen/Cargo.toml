@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 hexx = "0.20.0"
-noise = {version = "0.9.0", features = ["images"] }
+noise = "0.9.0"
 rand = "0.9.1"

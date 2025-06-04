@@ -7,7 +7,23 @@ use bevy::{
 
 use hexx::{HexLayout, PlaneMeshBuilder};
 
+use hexmap_worldgen::TerrainType;
+
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
+
+fn terrain_colour(colour: TerrainType) -> [u8; 3] {
+    match colour {
+        TerrainType::DeepOcean => [6, 58, 127],
+        TerrainType::ShallowOcean => [14, 112, 192],
+        TerrainType::Coast => [25, 150, 230],
+        TerrainType::Beach => [210, 170, 110],
+        TerrainType::Plains => [70, 120, 60],
+        TerrainType::Hills => [110, 140, 100],
+        TerrainType::LowMountains => [150, 150, 150],
+        TerrainType::HighMountains => [220, 220, 200],
+        TerrainType::Peaks => [250, 250, 250],
+    }
+}
 
 fn hexagonal_plane(hex_layout: &HexLayout) -> Mesh {
     let mesh_info = PlaneMeshBuilder::new(hex_layout)
@@ -42,7 +58,7 @@ pub fn generate_world(
         height: generated_world.height(),
     };
 
-    let mut material_cache = HashMap::<[u8; 4], Handle<ColorMaterial>>::new();
+    let mut material_cache = HashMap::<_, Handle<ColorMaterial>>::new();
     let mesh = meshes.add(hexagonal_plane(&world.layout));
 
     let origin = commands.spawn(WorldOrigin).id();
@@ -63,11 +79,12 @@ pub fn generate_world(
 
     let tiles = generated_world
         .tiles()
-        .map(|(hex, &[r, g, b, a])| {
-            let material = match material_cache.entry([r, g, b, a]) {
+        .map(|(hex, terrain)| {
+            let colour = terrain_colour(terrain);
+            let material = match material_cache.entry(colour) {
                 Entry::Occupied(material) => material.get().clone(),
                 Entry::Vacant(vacant) => vacant
-                    .insert(materials.add(Color::srgb_u8(r, g, b)))
+                    .insert(materials.add(Color::srgb_u8(colour[0], colour[1], colour[2])))
                     .clone(),
             };
 

@@ -1,15 +1,28 @@
 use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
+#[derive(Debug, Clone, Copy)]
+pub enum TerrainType {
+    DeepOcean,
+    ShallowOcean,
+    Coast,
+    Beach,
+    Plains,
+    Hills,
+    LowMountains,
+    HighMountains,
+    Peaks,
+}
+
 #[derive(Debug, Clone)]
-pub struct GeneratedWorld<T> {
+pub struct GeneratedWorld {
     width: i32,
     height: i32,
     layout: HexLayout,
-    tiles: Vec<T>,
+    tiles: Vec<TerrainType>,
 }
 
-impl<T> GeneratedWorld<T> {
-    pub fn new(width: i32, height: i32, layout: HexLayout, tiles: Vec<T>) -> Self {
+impl GeneratedWorld {
+    pub fn new(width: i32, height: i32, layout: HexLayout, tiles: Vec<TerrainType>) -> Self {
         Self {
             width,
             height,
@@ -30,7 +43,7 @@ impl<T> GeneratedWorld<T> {
         &self.layout
     }
 
-    pub fn tiles(&self) -> impl Iterator<Item = (Hex, &T)> {
+    pub fn tiles(&self) -> impl Iterator<Item = (Hex, TerrainType)> {
         let height = self.height;
 
         let index_to_hex = move |index| {
@@ -47,6 +60,6 @@ impl<T> GeneratedWorld<T> {
         self.tiles
             .iter()
             .enumerate()
-            .map(move |(index, tile)| (index_to_hex(index), tile))
+            .map(move |(index, tile)| (index_to_hex(index), *tile))
     }
 }

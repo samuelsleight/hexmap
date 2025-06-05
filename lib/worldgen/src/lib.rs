@@ -15,6 +15,14 @@ pub struct WorldParams {
     pub scale_factor: f64,
 }
 
+struct ContinentWrapper<Source: NoiseFn<f64, 3>> {
+    overall_extent: f64,
+    bounds_extent: f64,
+    erosion_power: f64,
+
+    source: Source,
+}
+
 impl WorldParams {
     fn get_terrain(&self, value: f64) -> TerrainType {
         let to_range = |value| (value / 1.67) - 0.4;
@@ -22,7 +30,7 @@ impl WorldParams {
         let value = to_range(value + 1.);
 
         let ocean_percentage = 0.42;
-        let mountain_percentage = 0.35;
+        let mountain_percentage = 0.37;
 
         let land_threshold = to_range(2. * ocean_percentage);
         let mountain_threshold = to_range(2. * (1. - mountain_percentage));
@@ -40,7 +48,7 @@ impl WorldParams {
         } else if value <= mountain_threshold {
             let percentage = (value - land_threshold) / (mountain_threshold - land_threshold);
 
-            if percentage < 0.075 {
+            if percentage < 0.085 {
                 TerrainType::Beach
             } else if percentage < 0.6 {
                 TerrainType::Plains
@@ -61,7 +69,32 @@ impl WorldParams {
     }
 }
 
-fn get_noise_fn() -> impl NoiseFn<f64, 3> {
+impl<T: NoiseFn<f64, 3>> NoiseFn<f64, 3> for ContinentWrapper<T> {
+    fn get(&self, point: [f64; 3]) -> f64 {
+        let inner = self.source.get(point);
+
+        let y = point[1];
+        let mut erosion = 0.;
+
+        if y < self.bounds_extent {
+            let depth = 1. - (y / self.bounds_extent);
+            erosion = depth * self.erosion_power;
+        } else if y > (self.overall_extent - self.bounds_extent) {
+            let threshold = self.overall_extent - self.bounds_extent;
+            let y = y - threshold;
+            let depth = y / self.bounds_extent;
+            erosion = depth * self.erosion_power;
+        }
+
+        inner - erosion
+    }
+}
+
+fn get_noise_fn(
+    height_extent: f64,
+    continent_bounds: f64,
+    erosion_power: f64,
+) -> impl NoiseFn<f64, 3> {
     let seed = rng().random();
 
     let base = Fbm::<Perlin>::default()
@@ -77,10 +110,17 @@ fn get_noise_fn() -> impl NoiseFn<f64, 3> {
         .set_persistence(0.60)
         .set_octaves(5);
 
-    Add::new(
+    let added = Add::new(
         ScaleBias::new(base).set_scale(0.6),
         ScaleBias::new(ridged).set_scale(0.4),
-    )
+    );
+
+    ContinentWrapper {
+        overall_extent: height_extent,
+        bounds_extent: continent_bounds,
+        erosion_power,
+        source: added,
+    }
 }
 
 pub fn generate_world(params: &WorldParams) -> GeneratedWorld {
@@ -98,7 +138,7 @@ pub fn generate_world(params: &WorldParams) -> GeneratedWorld {
     let x_step = angle_extent / params.width as f64;
     let y_step = height_extent / params.height as f64;
 
-    let noise = get_noise_fn();
+    let noise = get_noise_fn(height_extent, y_step * 15., 0.6);
 
     let vec = flat_rectangle([1, params.width, 1, params.height])
         .map(|hex| {

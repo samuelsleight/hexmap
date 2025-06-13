@@ -29,8 +29,8 @@ impl WorldParams {
 
         let value = to_range(value + 1.);
 
-        let ocean_percentage = 0.42;
-        let mountain_percentage = 0.37;
+        let ocean_percentage = 0.44;
+        let mountain_percentage = 0.32;
 
         let land_threshold = to_range(2. * ocean_percentage);
         let mountain_threshold = to_range(2. * (1. - mountain_percentage));
@@ -111,8 +111,8 @@ fn get_noise_fn(
         .set_octaves(5);
 
     let added = Add::new(
-        ScaleBias::new(base).set_scale(0.6),
-        ScaleBias::new(ridged).set_scale(0.4),
+        ScaleBias::new(base).set_scale(0.7),
+        ScaleBias::new(ridged).set_scale(0.3),
     );
 
     ContinentWrapper {

@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use rand::{Rng, distr::Uniform};
-
 use camera::CameraPlugin;
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
@@ -23,36 +21,9 @@ fn setup_world(mut commands: Commands) {
     commands.insert_resource(WorldParams {
         width: 170,
         height: 100,
-        scale_factor: 1.6,
+        //scale_factor: 1.6,
+        scale_factor: 1.2,
     });
-}
-
-fn spawn_some_squares(
-    mut commands: Commands,
-    world: Res<WorldLayout>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    let mesh = meshes.add(Rectangle::new(6., 6.));
-
-    let colours = [
-        materials.add(ColorMaterial::from_color(Color::srgb(1., 0., 0.))),
-        materials.add(ColorMaterial::from_color(Color::srgb(1., 1., 0.))),
-        materials.add(ColorMaterial::from_color(Color::srgb(1., 0., 1.))),
-        materials.add(ColorMaterial::from_color(Color::srgb(0., 1., 1.))),
-    ];
-
-    let mut rng = rand::rng();
-    let x_dist = Uniform::new(0, 170).unwrap();
-    let y_dist = Uniform::new(0, 100).unwrap();
-
-    for i in 0..25 {
-        commands.spawn((
-            Mesh2d(mesh.clone()),
-            MeshMaterial2d(colours[i % colours.len()].clone()),
-            OnHex(Some(world.hex(rng.sample(x_dist), rng.sample(y_dist)))),
-        ));
-    }
 }
 
 fn indicators(
@@ -92,12 +63,6 @@ pub fn main() {
             SelectionPlugin,
         ))
         .add_systems(Startup, setup_world)
-        .add_systems(
-            Update,
-            (
-                indicators.run_if(resource_exists::<WorldLayout>),
-                spawn_some_squares.run_if(resource_added::<WorldLayout>),
-            ),
-        )
+        .add_systems(Update, indicators.run_if(resource_exists::<WorldLayout>))
         .run();
 }

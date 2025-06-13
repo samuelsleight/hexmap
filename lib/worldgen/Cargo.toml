@@ -7,3 +7,4 @@ edition = "2024"
 hexx = "0.20.0"
 noise = "0.9.0"
 rand = "0.9.1"
+fast_poisson = {git="https://github.com/samuelsleight/fast_poisson", branch="radius_function"}

@@ -9,6 +9,8 @@ use hexx::{HexLayout, PlaneMeshBuilder};
 
 use hexmap_worldgen::TerrainType;
 
+use crate::world::OnHex;
+
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
 
 fn terrain_colour(colour: TerrainType) -> [u8; 3] {
@@ -101,6 +103,19 @@ pub fn generate_world(
                 .id()
         })
         .collect();
+
+    let settlement_material =
+        materials.add(ColorMaterial::from_color(Color::srgb_u8(100, 50, 150)));
+
+    let settlement_mesh = meshes.add(Rectangle::new(6., 6.));
+
+    for hex in generated_world.generate_settlements() {
+        commands.spawn((
+            Mesh2d(settlement_mesh.clone()),
+            MeshMaterial2d(settlement_material.clone()),
+            OnHex(Some(hex)),
+        ));
+    }
 
     commands.remove_resource::<WorldParams>();
     commands.insert_resource(WorldTiles { tiles });

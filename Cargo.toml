@@ -8,7 +8,8 @@ resolver = "2"
 members = ["lib/worldgen"]
 
 [features]
-profiling = ["dep:iyes_perf_ui", "bevy/default_font"]
+debug_ui = ["dep:iyes_perf_ui", "bevy/default_font"]
+profiling = ["debug_ui"]
 all = ["profiling"]
 
 [dependencies]

@@ -7,6 +7,9 @@ pub use self::types::*;
 mod systems;
 mod types;
 
+#[cfg(feature = "debug_ui")]
+mod debug;
+
 pub struct SelectionPlugin;
 
 impl Plugin for SelectionPlugin {
@@ -20,5 +23,8 @@ impl Plugin for SelectionPlugin {
                 )
                     .run_if(resource_exists::<WorldLayout>),
             );
+
+        #[cfg(feature = "debug_ui")]
+        app.add_plugins(debug::DebugPlugin);
     }
 }

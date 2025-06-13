@@ -3,26 +3,20 @@ use bevy::prelude::*;
 use rand::{Rng, distr::Uniform};
 
 use camera::CameraPlugin;
-use input::{InputPlugin, MousePosition};
+use input::InputPlugin;
 use profiling::ProfilingPlugin;
-use world::{OnHex, WorldLayout, WorldOrigin, WorldParams, WorldPlugin};
+use selection::SelectionPlugin;
+use world::{OnHex, WorldLayout, WorldParams, WorldPlugin};
 
 mod camera;
 mod input;
 mod profiling;
+mod selection;
 mod world;
 
 #[derive(Default, Component)]
 #[require(OnHex, Transform = Transform::from_xyz(0., 0., 1.))]
 struct Indicator;
-
-#[derive(Default, Component)]
-#[require(Indicator)]
-struct HoverIndicator;
-
-#[derive(Default, Component)]
-#[require(Indicator)]
-struct SelectionIndicator;
 
 fn setup_world(mut commands: Commands) {
     // Request the world generation
@@ -31,10 +25,6 @@ fn setup_world(mut commands: Commands) {
         height: 100,
         scale_factor: 1.6,
     });
-
-    // Spawn some global indicators
-    commands.spawn(HoverIndicator);
-    commands.spawn(SelectionIndicator);
 }
 
 fn spawn_some_squares(
@@ -62,33 +52,6 @@ fn spawn_some_squares(
             MeshMaterial2d(colours[i % colours.len()].clone()),
             OnHex(Some(world.hex(rng.sample(x_dist), rng.sample(y_dist)))),
         ));
-    }
-}
-
-fn mouse_hover(
-    position: Res<MousePosition>,
-    world: Res<WorldLayout>,
-    origin: Single<&Transform, With<WorldOrigin>>,
-    indicator: Single<&mut OnHex, With<HoverIndicator>>,
-) {
-    let origin = origin.into_inner();
-    indicator.into_inner().0 = Some(world.pick_tile(position.0, origin.translation.xy()));
-}
-
-fn mouse_press(
-    mouse: Res<ButtonInput<MouseButton>>,
-    hover: Single<&OnHex, With<HoverIndicator>>,
-    select: Single<&mut OnHex, (With<SelectionIndicator>, Without<HoverIndicator>)>,
-) {
-    if mouse.just_released(MouseButton::Left) {
-        let hovered = hover.into_inner();
-        let mut current = select.into_inner();
-
-        if current.0 != hovered.0 {
-            current.0 = hovered.0;
-        } else {
-            current.0 = None;
-        }
     }
 }
 
@@ -121,17 +84,18 @@ pub fn main() {
             }),
             ..default()
         }))
-        .add_plugins((ProfilingPlugin, WorldPlugin, CameraPlugin, InputPlugin))
+        .add_plugins((
+            ProfilingPlugin,
+            WorldPlugin,
+            CameraPlugin,
+            InputPlugin,
+            SelectionPlugin,
+        ))
         .add_systems(Startup, setup_world)
         .add_systems(
             Update,
             (
-                (
-                    mouse_hover.run_if(resource_changed::<MousePosition>),
-                    mouse_press,
-                    indicators,
-                )
-                    .run_if(resource_exists::<WorldLayout>),
+                indicators.run_if(resource_exists::<WorldLayout>),
                 spawn_some_squares.run_if(resource_added::<WorldLayout>),
             ),
         )

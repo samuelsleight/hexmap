@@ -6,8 +6,12 @@ use bevy::{
 };
 
 use hexx::{HexLayout, PlaneMeshBuilder};
+use rand::{Rng, rng};
 
-use hexmap_worldgen::TerrainType;
+use hexmap_worldgen::{
+    settlements::{self, SettlementParams},
+    terrain::{self, TerrainParams, TerrainType},
+};
 
 use crate::world::OnHex;
 
@@ -48,16 +52,16 @@ pub fn generate_world(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let generated_world = hexmap_worldgen::generate_world(&hexmap_worldgen::WorldParams {
-        width: params.width,
-        height: params.height,
-        scale_factor: params.scale_factor,
-    });
+    let generated_terrain = terrain::generate(TerrainParams::new(
+        params.width,
+        params.height,
+        params.scale_factor,
+    ));
 
     let world = WorldLayout {
-        layout: generated_world.layout().clone().with_hex_size(6.),
-        width: generated_world.width(),
-        height: generated_world.height(),
+        layout: generated_terrain.layout().clone().with_hex_size(6.),
+        width: generated_terrain.width(),
+        height: generated_terrain.height(),
     };
 
     let mut material_cache = HashMap::<_, Handle<ColorMaterial>>::new();
@@ -79,7 +83,7 @@ pub fn generate_world(
         })
         .collect::<Vec<_>>();
 
-    let tiles = generated_world
+    let tiles = generated_terrain
         .tiles()
         .map(|(hex, terrain)| {
             let colour = terrain_colour(terrain);
@@ -109,7 +113,7 @@ pub fn generate_world(
 
     let settlement_mesh = meshes.add(Rectangle::new(6., 6.));
 
-    for hex in generated_world.generate_settlements() {
+    for hex in settlements::generate(&generated_terrain, SettlementParams::new(rng().random())) {
         commands.spawn((
             Mesh2d(settlement_mesh.clone()),
             MeshMaterial2d(settlement_material.clone()),

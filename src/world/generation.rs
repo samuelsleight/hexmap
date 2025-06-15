@@ -4,7 +4,7 @@ use bevy::{
     asset::RenderAssetUsages,
     platform::collections::{HashMap, hash_map::Entry},
     prelude::*,
-    render::mesh::{Indices, PrimitiveTopology},
+    render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
 };
 
 use hexx::{HexLayout, PlaneMeshBuilder};
@@ -31,17 +31,17 @@ impl ClosestZone {
     }
 }
 
-fn terrain_colour(colour: TerrainType) -> [u8; 3] {
+fn terrain_colour(colour: TerrainType) -> [u8; 4] {
     match colour {
-        TerrainType::DeepOcean => [6, 58, 127],
-        TerrainType::ShallowOcean => [14, 112, 192],
-        TerrainType::Coast => [25, 150, 230],
-        TerrainType::Beach => [210, 170, 110],
-        TerrainType::Plains => [70, 120, 60],
-        TerrainType::Hills => [110, 140, 100],
-        TerrainType::LowMountains => [150, 150, 150],
-        TerrainType::HighMountains => [220, 220, 200],
-        TerrainType::Peaks => [250, 250, 250],
+        TerrainType::DeepOcean => [6, 58, 127, 255],
+        TerrainType::ShallowOcean => [14, 112, 192, 255],
+        TerrainType::Coast => [25, 150, 230, 255],
+        TerrainType::Beach => [210, 170, 110, 255],
+        TerrainType::Plains => [70, 120, 60, 255],
+        TerrainType::Hills => [110, 140, 100, 255],
+        TerrainType::LowMountains => [150, 150, 150, 255],
+        TerrainType::HighMountains => [220, 220, 200, 255],
+        TerrainType::Peaks => [250, 250, 250, 255],
     }
 }
 
@@ -92,8 +92,11 @@ pub fn generate_world(
         height: generated_terrain.height(),
     };
 
-    let mut material_cache = HashMap::<_, Handle<ColorMaterial>>::new();
-    let mesh = meshes.add(hexagonal_plane(&world.layout));
+    let material = materials.add(ColorMaterial::default());
+
+    let base_mesh = hexagonal_plane(&world.layout);
+
+    let mut mesh_cache = HashMap::<_, Handle<Mesh>>::new();
 
     let origin = commands.spawn(WorldOrigin).id();
 
@@ -115,10 +118,21 @@ pub fn generate_world(
         .tiles()
         .map(|(hex, terrain)| {
             let colour = terrain_colour(terrain);
-            let material = match material_cache.entry(colour) {
-                Entry::Occupied(material) => material.get().clone(),
+            let mesh = match mesh_cache.entry(colour) {
+                Entry::Occupied(mesh) => mesh.get().clone(),
                 Entry::Vacant(vacant) => vacant
-                    .insert(materials.add(Color::srgb_u8(colour[0], colour[1], colour[2])))
+                    .insert({
+                        let colour = Color::srgb_u8(colour[0], colour[1], colour[2]);
+                        let mut mesh = base_mesh.clone();
+                        mesh.insert_attribute(
+                            Mesh::ATTRIBUTE_COLOR,
+                            VertexAttributeValues::Float32x4(vec![
+                                colour.to_linear().to_f32_array();
+                                6
+                            ]),
+                        );
+                        meshes.add(mesh)
+                    })
                     .clone(),
             };
 
@@ -127,8 +141,8 @@ pub fn generate_world(
 
             commands
                 .spawn((
-                    Mesh2d(mesh.clone()),
-                    MeshMaterial2d(material),
+                    Mesh2d(mesh),
+                    MeshMaterial2d(material.clone()),
                     Transform::from_xyz(0., pos.y, 0.),
                     ChildOf(columns[x as usize - 1]),
                 ))
@@ -149,8 +163,8 @@ pub fn generate_world(
 
     let zone_colours = settlements
         .iter()
-        .map(|_| Color::srgba_u8(rng().random(), rng().random(), rng().random(), 200))
-        .collect::<Vec<_>>();
+        .map(|_| [rng().random(), rng().random(), rng().random(), 150])
+        .collect::<Vec<[u8; 4]>>();
 
     let mut closest_zones = settlements
         .iter()
@@ -164,6 +178,7 @@ pub fn generate_world(
         hex.y -= 1;
 
         commands.spawn((
+            Transform::from_xyz(0., 0., 3.),
             Mesh2d(settlement_mesh.clone()),
             MeshMaterial2d(settlement_material.clone()),
             OnHex(Some(hex)),
@@ -226,9 +241,26 @@ pub fn generate_world(
         hex.x -= 1;
         hex.y -= 1;
 
+        let colour = zone_colours[zone.zone];
+        let mesh = match mesh_cache.entry(colour) {
+            Entry::Occupied(mesh) => mesh.get().clone(),
+            Entry::Vacant(vacant) => vacant
+                .insert({
+                    let colour = Color::srgba_u8(colour[0], colour[1], colour[2], colour[3]);
+                    let mut mesh = base_mesh.clone();
+                    mesh.insert_attribute(
+                        Mesh::ATTRIBUTE_COLOR,
+                        VertexAttributeValues::Float32x4(vec![colour.to_srgba().to_f32_array(); 6]),
+                    );
+                    meshes.add(mesh)
+                })
+                .clone(),
+        };
+
         commands.spawn((
+            Transform::from_xyz(0., 0., 5.),
             Mesh2d(mesh.clone()),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(zone_colours[zone.zone]))),
+            MeshMaterial2d(material.clone()),
             OnHex(Some(hex)),
             ZoneHighlight,
         ));

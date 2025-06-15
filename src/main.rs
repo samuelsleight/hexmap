@@ -4,7 +4,7 @@ use camera::CameraPlugin;
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
 use selection::SelectionPlugin;
-use world::{OnHex, WorldLayout, WorldParams, WorldPlugin};
+use world::{OnHex, WorldLayout, WorldParams, WorldPlugin, ZoneHighlight};
 
 mod camera;
 mod input;
@@ -42,6 +42,21 @@ fn indicators(
     }
 }
 
+fn zone_toggle(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    zone_markers: Query<&mut Visibility, With<ZoneHighlight>>,
+) {
+    if keyboard_input.just_released(KeyCode::Digit1) {
+        for mut visibility in zone_markers {
+            *visibility = Visibility::Inherited;
+        }
+    } else if keyboard_input.just_released(KeyCode::Digit2) {
+        for mut visibility in zone_markers {
+            *visibility = Visibility::Hidden;
+        }
+    }
+}
+
 pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -63,6 +78,9 @@ pub fn main() {
             SelectionPlugin,
         ))
         .add_systems(Startup, setup_world)
-        .add_systems(Update, indicators.run_if(resource_exists::<WorldLayout>))
+        .add_systems(
+            Update,
+            (indicators, zone_toggle).run_if(resource_exists::<WorldLayout>),
+        )
         .run();
 }

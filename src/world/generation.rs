@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, num::NonZero};
+
 use bevy::{
     asset::RenderAssetUsages,
     platform::collections::{HashMap, hash_map::Entry},
@@ -13,9 +15,21 @@ use hexmap_worldgen::{
     terrain::{self, TerrainParams, TerrainType},
 };
 
-use crate::world::OnHex;
+use crate::world::{OnHex, ZoneHighlight};
 
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ClosestZone {
+    zone: usize,
+    cost: NonZero<usize>,
+}
+
+impl ClosestZone {
+    fn new(zone: usize, cost: NonZero<usize>) -> Self {
+        Self { zone, cost }
+    }
+}
 
 fn terrain_colour(colour: TerrainType) -> [u8; 3] {
     match colour {
@@ -28,6 +42,20 @@ fn terrain_colour(colour: TerrainType) -> [u8; 3] {
         TerrainType::LowMountains => [150, 150, 150],
         TerrainType::HighMountains => [220, 220, 200],
         TerrainType::Peaks => [250, 250, 250],
+    }
+}
+
+fn terrain_zone_cost(terrain: TerrainType) -> usize {
+    match terrain {
+        TerrainType::DeepOcean => 500,
+        TerrainType::ShallowOcean => 100,
+        TerrainType::Coast => 50,
+        TerrainType::Beach => 1,
+        TerrainType::Plains => 1,
+        TerrainType::Hills => 5,
+        TerrainType::LowMountains => 100,
+        TerrainType::HighMountains => 500,
+        TerrainType::Peaks => 1000,
     }
 }
 
@@ -108,16 +136,101 @@ pub fn generate_world(
         })
         .collect();
 
+    let terrain = generated_terrain.tiles().collect::<HashMap<_, _>>();
+
     let settlement_material =
         materials.add(ColorMaterial::from_color(Color::srgb_u8(100, 50, 150)));
 
     let settlement_mesh = meshes.add(Rectangle::new(6., 6.));
 
-    for hex in settlements::generate(&generated_terrain, SettlementParams::new(rng().random())) {
+    let settlements =
+        settlements::generate(&generated_terrain, SettlementParams::new(rng().random()))
+            .collect::<VecDeque<_>>();
+
+    let zone_colours = settlements
+        .iter()
+        .map(|_| Color::srgba_u8(rng().random(), rng().random(), rng().random(), 200))
+        .collect::<Vec<_>>();
+
+    let mut closest_zones = settlements
+        .iter()
+        .enumerate()
+        .map(|(index, hex)| (*hex, ClosestZone::new(index, NonZero::new(1).unwrap())))
+        .collect::<HashMap<_, _>>();
+
+    for hex in settlements.iter() {
+        let mut hex = *hex;
+        hex.x -= 1;
+        hex.y -= 1;
+
         commands.spawn((
             Mesh2d(settlement_mesh.clone()),
             MeshMaterial2d(settlement_material.clone()),
             OnHex(Some(hex)),
+        ));
+    }
+
+    let mut frontier = settlements;
+
+    let cost_fn = |from, to| {
+        let next_cost =
+            if let Some(cost) = terrain.get(&to).map(|terrain| terrain_zone_cost(*terrain)) {
+                cost
+            } else {
+                return None;
+            };
+
+        let this_cost = terrain_zone_cost(*terrain.get(&from).unwrap());
+
+        Some(if next_cost > this_cost {
+            next_cost * 2
+        } else {
+            next_cost / 2
+        })
+    };
+
+    while let Some(hex) = frontier.pop_front() {
+        let current = *closest_zones.get(&hex).unwrap();
+
+        for neighbour in hex.all_neighbors() {
+            let neighbour = world.wrap(neighbour);
+
+            let cost = if let Some(cost) = cost_fn(hex, neighbour) {
+                cost
+            } else {
+                continue;
+            };
+
+            let neighbour_cost = NonZero::new(current.cost.get() + cost).unwrap();
+
+            match closest_zones.entry(neighbour) {
+                Entry::Occupied(entry) => {
+                    let existing_cost = entry.get().cost;
+
+                    if neighbour_cost < existing_cost {
+                        entry.replace_entry_with(|_, _| {
+                            Some(ClosestZone::new(current.zone, neighbour_cost))
+                        });
+                        frontier.push_back(neighbour);
+                    }
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(ClosestZone::new(current.zone, neighbour_cost));
+                    frontier.push_back(neighbour);
+                }
+            }
+        }
+    }
+
+    for (mut hex, zone) in closest_zones {
+        hex.x -= 1;
+        hex.y -= 1;
+
+        commands.spawn((
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(zone_colours[zone.zone]))),
+            OnHex(Some(hex)),
+            ZoneHighlight,
         ));
     }
 

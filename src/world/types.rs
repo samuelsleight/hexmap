@@ -3,6 +3,10 @@ use bevy::prelude::*;
 use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
 #[derive(Default, Component)]
+#[require(Visibility)]
+pub struct ZoneHighlight;
+
+#[derive(Default, Component)]
 #[require(Visibility = Visibility::Hidden)]
 pub struct OnHex(pub Option<Hex>);
 
@@ -42,6 +46,18 @@ impl WorldLayout {
 
     pub fn hex_to_xy(&self, hex: Hex) -> [i32; 2] {
         hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat)
+    }
+
+    pub fn wrap(&self, hex: Hex) -> Hex {
+        let [mut x, y] = self.hex_to_xy(hex);
+
+        if x <= 0 {
+            x += self.width;
+        } else if x > self.width {
+            x -= self.width;
+        }
+
+        self.hex(x, y)
     }
 
     pub fn world_size(&self) -> Vec2 {

@@ -50,7 +50,7 @@ pub fn generate(
             let min_radius = 2.;
             let max_radius = 10.;
 
-            let hex = hex_fn(x as i32, y as i32) + Hex::new(1, 1);
+            let hex = hex_fn(x as i32, y as i32);
             let [x, y] = hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat);
 
             if habitability.get(&hex).is_some_and(|pair| *pair) {

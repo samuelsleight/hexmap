@@ -1,8 +1,7 @@
-use std::f64::consts::PI;
-
-use ::noise::NoiseFn;
-use hexx::{HexLayout, HexOrientation, OffsetHexMode, shapes::flat_rectangle};
+use hexx::HexLayout;
 use rand::{Rng, rng};
+
+use crate::cylinder::CylindricalHexMapSampler;
 
 use self::noise::NoiseParameters;
 
@@ -80,44 +79,19 @@ pub fn generate(
     }: TerrainParams,
 ) -> GeneratedTerrain {
     let layout = HexLayout::flat().with_hex_size(2.);
-    let hex_rect = layout.rect_size();
-
-    let scale = 1. / scale_factor;
-
-    let angle_extent = 360.0;
-    let height_extent = (2. * PI)
-        * scale
-        * (height as f64 / width as f64)
-        * (hex_rect.x as f64 / hex_rect.y as f64);
-
-    let x_step = angle_extent / width as f64;
-    let y_step = height_extent / height as f64;
+    let sampler = CylindricalHexMapSampler::new(width, height, scale_factor, layout.clone());
 
     let noise = noise::get_noise_fn(NoiseParameters::new(
         rng().random(),
-        height_extent,
-        y_step * 15.,
+        sampler.height_extent(),
+        sampler.y_step() * 15.,
         0.6,
     ));
 
-    let vec = flat_rectangle([1, width, 1, height])
-        .map(|hex| {
-            let [x, y] = hex.to_offset_coordinates(OffsetHexMode::Even, HexOrientation::Flat);
-
-            let mut current_height = y_step * y as f64;
-            let current_angle = x_step * x as f64;
-
-            if x % 2 == 0 {
-                current_height += y_step * 0.5;
-            }
-
-            let point_x = current_angle.to_radians().cos() * scale;
-            let point_z = current_angle.to_radians().sin() * scale;
-
-            let value = noise.get([point_x, current_height, point_z]);
-            get_terrain(value)
-        })
-        .collect();
-
-    GeneratedTerrain::new(width, height, layout, vec)
+    GeneratedTerrain::new(
+        width,
+        height,
+        layout,
+        sampler.generate(noise).map(get_terrain).collect(),
+    )
 }

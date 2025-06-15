@@ -26,8 +26,28 @@ fn setup_world(mut commands: Commands) {
     });
 }
 
+fn get_scale(projection: &Projection) -> f32 {
+    if let Projection::Orthographic(ortho) = projection {
+        return ortho.scale;
+    }
+
+    panic!("Unexpected projection")
+}
+
+fn setup_gizmos(mut config: ResMut<GizmoConfigStore>, camera: Single<&Projection, With<Camera>>) {
+    let projection = camera.into_inner();
+    let scale = get_scale(&projection);
+
+    let (indicator_config, _) = config.config_mut::<IndicatorGizmos>();
+    indicator_config.line.width = 1. / scale;
+    indicator_config.line.joints = GizmoLineJoint::Miter;
+}
+
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct IndicatorGizmos;
+
 fn indicators(
-    mut gizmos: Gizmos,
+    mut gizmos: Gizmos<IndicatorGizmos>,
     world: Res<WorldLayout>,
     indicators: Query<(&GlobalTransform, &InheritedVisibility), With<Indicator>>,
 ) {
@@ -35,9 +55,15 @@ fn indicators(
         if visibility.get() {
             let transform = indicator.translation().xy();
 
-            for [a, b] in world.edge_coordinates() {
-                gizmos.line_2d(transform + a, transform + b, Color::srgb(0.5, 0.5, 0.5));
-            }
+            gizmos.linestrip_2d(
+                world
+                    .edge_coordinates()
+                    .into_iter()
+                    .map(|[a, _]| a)
+                    .chain(world.edge_coordinates().into_iter().take(2).map(|[a, _]| a))
+                    .map(|v| v + transform),
+                Color::srgb(0.5, 0.5, 0.5),
+            );
         }
     }
 }
@@ -77,10 +103,15 @@ pub fn main() {
             InputPlugin,
             SelectionPlugin,
         ))
+        .init_gizmo_group::<IndicatorGizmos>()
         .add_systems(Startup, setup_world)
         .add_systems(
             Update,
-            (indicators, zone_toggle).run_if(resource_exists::<WorldLayout>),
+            (setup_gizmos, zone_toggle).run_if(resource_exists::<WorldLayout>),
+        )
+        .add_systems(
+            PostUpdate,
+            indicators.run_if(resource_exists::<WorldLayout>),
         )
         .run();
 }

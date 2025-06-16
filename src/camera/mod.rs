@@ -4,6 +4,14 @@ use crate::world::WorldLayout;
 
 mod systems;
 
+#[derive(Clone, Copy, Component)]
+#[require(Transform)]
+pub enum RenderOrder {
+    Terrain,
+    InHex,
+    Overlay,
+}
+
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
@@ -14,6 +22,7 @@ impl Plugin for CameraPlugin {
                 systems::centre_camera,
                 systems::zoom_viewport,
                 systems::scroll_grid,
+                systems::render_order,
             )
                 .run_if(resource_exists::<WorldLayout>),
         );

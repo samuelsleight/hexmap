@@ -15,7 +15,10 @@ use hexmap_worldgen::{
     terrain::{self, TerrainParams, TerrainType},
 };
 
-use crate::world::{OnHex, ZoneHighlight};
+use crate::{
+    camera::RenderOrder,
+    world::{OnHex, ZoneHighlight},
+};
 
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
 
@@ -50,9 +53,9 @@ fn terrain_zone_cost(terrain: TerrainType) -> usize {
         TerrainType::DeepOcean => 500,
         TerrainType::ShallowOcean => 100,
         TerrainType::Coast => 50,
-        TerrainType::Beach => 1,
-        TerrainType::Plains => 1,
-        TerrainType::Hills => 5,
+        TerrainType::Beach => 2,
+        TerrainType::Plains => 2,
+        TerrainType::Hills => 3,
         TerrainType::LowMountains => 100,
         TerrainType::HighMountains => 500,
         TerrainType::Peaks => 1000,
@@ -80,6 +83,8 @@ pub fn generate_world(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    assert_eq!(size_of::<ClosestZone>(), size_of::<Option<ClosestZone>>());
+
     let generated_terrain = terrain::generate(TerrainParams::new(
         params.width,
         params.height,
@@ -145,6 +150,7 @@ pub fn generate_world(
                     MeshMaterial2d(material.clone()),
                     Transform::from_xyz(0., pos.y, 0.),
                     ChildOf(columns[x as usize - 1]),
+                    RenderOrder::Terrain,
                 ))
                 .id()
         })
@@ -163,7 +169,7 @@ pub fn generate_world(
 
     let zone_colours = settlements
         .iter()
-        .map(|_| [rng().random(), rng().random(), rng().random(), 150])
+        .map(|_| [rng().random(), rng().random(), rng().random(), 50])
         .collect::<Vec<[u8; 4]>>();
 
     let mut closest_zones = settlements
@@ -178,7 +184,7 @@ pub fn generate_world(
         hex.y -= 1;
 
         commands.spawn((
-            Transform::from_xyz(0., 0., 3.),
+            RenderOrder::InHex,
             Mesh2d(settlement_mesh.clone()),
             MeshMaterial2d(settlement_material.clone()),
             OnHex(Some(hex)),
@@ -198,7 +204,7 @@ pub fn generate_world(
         let this_cost = terrain_zone_cost(*terrain.get(&from).unwrap());
 
         Some(if next_cost > this_cost {
-            next_cost * 2
+            next_cost
         } else {
             next_cost / 2
         })
@@ -258,7 +264,6 @@ pub fn generate_world(
         };
 
         commands.spawn((
-            Transform::from_xyz(0., 0., 5.),
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material.clone()),
             OnHex(Some(hex)),

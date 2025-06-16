@@ -2,8 +2,10 @@ use bevy::prelude::*;
 
 use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
+use crate::camera::RenderOrder;
+
 #[derive(Default, Component)]
-#[require(Visibility)]
+#[require(Visibility, RenderOrder = RenderOrder::Overlay)]
 pub struct ZoneHighlight;
 
 #[derive(Default, Component)]

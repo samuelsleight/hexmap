@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use super::RenderOrder;
+
 use crate::world::{WorldLayout, WorldOrigin};
 
 fn get_scale(projection: &mut Projection) -> &mut f32 {
@@ -60,6 +62,12 @@ pub fn scroll_grid(
 
     if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
         transform.translation.x += speed;
+    }
+}
+
+pub fn render_order(query: Query<(&mut Transform, &RenderOrder)>) {
+    for (mut transform, order) in query {
+        transform.translation.z = ((*order as u32) * 5) as f32;
     }
 }
 

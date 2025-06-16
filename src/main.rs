@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::PresentMode};
+use bevy::{input::common_conditions::input_just_released, prelude::*, window::PresentMode};
 
 #[cfg(feature = "remote")]
 use bevy::remote::{RemotePlugin, http::RemoteHttpPlugin};
@@ -7,7 +7,7 @@ use camera::CameraPlugin;
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
 use selection::SelectionPlugin;
-use world::{OnHex, WorldLayout, WorldParams, WorldPlugin, ZoneHighlight};
+use world::{OnHex, WorldLayout, WorldOrigin, WorldParams, WorldPlugin, WorldTiles, ZoneHighlight};
 
 mod camera;
 mod input;
@@ -27,6 +27,13 @@ fn setup_world(mut commands: Commands) {
         //scale_factor: 1.6,
         scale_factor: 1.2,
     });
+}
+
+fn regenerate_world(mut commands: Commands, grid: Single<Entity, With<WorldOrigin>>) {
+    commands.remove_resource::<WorldLayout>();
+    commands.remove_resource::<WorldTiles>();
+    commands.entity(grid.into_inner()).despawn();
+    setup_world(commands);
 }
 
 fn get_scale(projection: &Projection) -> f32 {
@@ -119,7 +126,10 @@ pub fn main() {
     )
     .add_systems(
         PostUpdate,
-        indicators.run_if(resource_exists::<WorldLayout>),
+        (
+            regenerate_world.run_if(input_just_released(KeyCode::Space)),
+            indicators.run_if(resource_exists::<WorldLayout>),
+        ),
     )
     .run();
 }

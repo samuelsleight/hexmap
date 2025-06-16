@@ -15,7 +15,8 @@ rand = "0.9.1"
 [features]
 debug_ui = ["dep:iyes_perf_ui", "bevy/default_font"]
 profiling = ["debug_ui"]
-all = ["profiling"]
+remote = ["bevy/bevy_remote"]
+all = ["profiling", "remote"]
 
 [dependencies]
 # Workspace dependencies
@@ -36,6 +37,7 @@ features = [
     "bevy_gizmos",
     "bevy_sprite",
     "bevy_winit",
+    "multi_threaded",
     
     # Platform specific (unix)
     "x11",
@@ -49,6 +51,7 @@ features = [
     "bevy_gizmos",
     "bevy_sprite",
     "bevy_winit",
+    "multi_threaded",
 
     # Platform specific
     "web",

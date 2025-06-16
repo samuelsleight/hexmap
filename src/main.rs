@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PresentMode};
+
+#[cfg(feature = "remote")]
+use bevy::remote::{RemotePlugin, http::RemoteHttpPlugin};
 
 use camera::CameraPlugin;
 use input::InputPlugin;
@@ -84,35 +87,39 @@ fn zone_toggle(
 }
 
 pub fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                resolution: (1_000.0, 1_000.0).into(),
-                fit_canvas_to_parent: true,
+    let mut app = App::new();
 
-                #[cfg(not(target_arch = "wasm32"))]
-                present_mode: bevy::window::PresentMode::Immediate,
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            resolution: (1_000.0, 1_000.0).into(),
+            fit_canvas_to_parent: true,
+            present_mode: PresentMode::AutoNoVsync,
 
-                ..default()
-            }),
             ..default()
-        }))
-        .add_plugins((
-            ProfilingPlugin,
-            WorldPlugin,
-            CameraPlugin,
-            InputPlugin,
-            SelectionPlugin,
-        ))
-        .init_gizmo_group::<IndicatorGizmos>()
-        .add_systems(Startup, setup_world)
-        .add_systems(
-            Update,
-            (setup_gizmos, zone_toggle).run_if(resource_exists::<WorldLayout>),
-        )
-        .add_systems(
-            PostUpdate,
-            indicators.run_if(resource_exists::<WorldLayout>),
-        )
-        .run();
+        }),
+        ..default()
+    }));
+
+    #[cfg(feature = "remote")]
+    app.add_plugins(RemotePlugin::default())
+        .add_plugins(RemoteHttpPlugin::default());
+
+    app.add_plugins((
+        ProfilingPlugin,
+        WorldPlugin,
+        CameraPlugin,
+        InputPlugin,
+        SelectionPlugin,
+    ))
+    .init_gizmo_group::<IndicatorGizmos>()
+    .add_systems(Startup, setup_world)
+    .add_systems(
+        Update,
+        (setup_gizmos, zone_toggle).run_if(resource_exists::<WorldLayout>),
+    )
+    .add_systems(
+        PostUpdate,
+        indicators.run_if(resource_exists::<WorldLayout>),
+    )
+    .run();
 }

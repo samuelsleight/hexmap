@@ -88,6 +88,7 @@ pub fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: (1_000.0, 1_000.0).into(),
+                fit_canvas_to_parent: true,
 
                 #[cfg(not(target_arch = "wasm32"))]
                 present_mode: bevy::window::PresentMode::Immediate,

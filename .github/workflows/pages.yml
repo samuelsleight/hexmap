@@ -12,13 +12,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: samsleight/rust-trunkrs:1.87-slim
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-    - name: Install Wasm Target
-      run: rustup target add wasm32-unknown-unknown
-    - name: Install Trunk
-      run: cargo install trunk
     - name: Build Web Assets
       run: trunk build --release --verbose
     - name: Upload Artifact

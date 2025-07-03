@@ -7,7 +7,9 @@ use camera::CameraPlugin;
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
 use selection::SelectionPlugin;
-use world::{OnHex, WorldLayout, WorldOrigin, WorldParams, WorldPlugin, WorldTiles, ZoneHighlight};
+use world::{OnHex, WorldLayout, WorldOrigin, WorldParams, WorldPlugin, WorldTiles};
+
+use crate::camera::{CurrentOverlay, OverlayMode};
 
 mod camera;
 mod input;
@@ -78,18 +80,11 @@ fn indicators(
     }
 }
 
-fn zone_toggle(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    zone_markers: Query<&mut Visibility, With<ZoneHighlight>>,
-) {
+fn mode_toggle(keyboard_input: Res<ButtonInput<KeyCode>>, mut mode: ResMut<CurrentOverlay>) {
     if keyboard_input.just_released(KeyCode::Digit1) {
-        for mut visibility in zone_markers {
-            *visibility = Visibility::Inherited;
-        }
+        mode.0 = OverlayMode::None
     } else if keyboard_input.just_released(KeyCode::Digit2) {
-        for mut visibility in zone_markers {
-            *visibility = Visibility::Hidden;
-        }
+        mode.0 = OverlayMode::Zone
     }
 }
 
@@ -122,7 +117,7 @@ pub fn main() {
     .add_systems(Startup, setup_world)
     .add_systems(
         Update,
-        (setup_gizmos, zone_toggle).run_if(resource_exists::<WorldLayout>),
+        (setup_gizmos, mode_toggle).run_if(resource_exists::<WorldLayout>),
     )
     .add_systems(
         PostUpdate,

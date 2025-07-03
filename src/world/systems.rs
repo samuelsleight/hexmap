@@ -1,5 +1,7 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
+use crate::camera::VisibilityFlags;
+
 use super::{OnHex, WorldColumn, WorldLayout, WorldOrigin, WorldTiles};
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -9,14 +11,14 @@ pub fn parent_grid_objects(
     mut commands: Commands,
     world: Res<WorldLayout>,
     tiles: Res<WorldTiles>,
-    objects: Query<(Entity, &OnHex, &mut Visibility), Changed<OnHex>>,
+    objects: Query<(Entity, &OnHex, &mut VisibilityFlags), Changed<OnHex>>,
 ) {
-    for (entity, hex, mut visibility) in objects {
+    for (entity, hex, mut flags) in objects {
         if let Some(tile) = hex.0.and_then(|hex| tiles.get(hex, &world)) {
-            *visibility = Visibility::Inherited;
+            flags.hex_visibility = true;
             commands.entity(entity).insert(ChildOf(tile));
         } else {
-            *visibility = Visibility::Hidden;
+            flags.hex_visibility = false;
         }
     }
 }

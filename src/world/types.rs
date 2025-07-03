@@ -2,14 +2,14 @@ use bevy::prelude::*;
 
 use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
-use crate::camera::RenderOrder;
+use crate::camera::{OverlayMode, RenderOrder, VisibilityFlags};
 
 #[derive(Default, Component)]
-#[require(Visibility, RenderOrder = RenderOrder::Overlay)]
+#[require(Visibility, RenderOrder = RenderOrder::Overlay, OverlayMode = OverlayMode::Zone)]
 pub struct ZoneHighlight;
 
 #[derive(Default, Component)]
-#[require(Visibility = Visibility::Hidden)]
+#[require(VisibilityFlags)]
 pub struct OnHex(pub Option<Hex>);
 
 #[derive(Component)]

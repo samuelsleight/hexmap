@@ -4,19 +4,19 @@ use hexx::{Hex, HexLayout, HexOrientation, OffsetHexMode};
 
 use crate::camera::{OverlayMode, RenderOrder, VisibilityFlags};
 
-#[derive(Default, Component)]
+#[derive(Copy, Clone, Default, Component)]
 #[require(Visibility, RenderOrder = RenderOrder::Overlay, OverlayMode = OverlayMode::Zone)]
 pub struct ZoneHighlight;
 
-#[derive(Default, Component)]
+#[derive(Copy, Clone, Default, Component)]
 #[require(VisibilityFlags)]
 pub struct OnHex(pub Option<Hex>);
 
-#[derive(Component)]
+#[derive(Copy, Clone, Component)]
 #[require(InheritedVisibility, Transform)]
 pub struct WorldOrigin;
 
-#[derive(Component)]
+#[derive(Copy, Clone, Component)]
 #[require(InheritedVisibility, Transform)]
 pub struct WorldColumn {
     pub column: i32,

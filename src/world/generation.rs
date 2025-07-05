@@ -7,7 +7,7 @@ use bevy::{
     render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
 };
 
-use hexx::{HexLayout, PlaneMeshBuilder};
+use hexx::{GridEdge, Hex, HexLayout, PlaneMeshBuilder};
 use rand::{Rng, rng};
 
 use hexmap_worldgen::{
@@ -169,7 +169,7 @@ pub fn generate_world(
 
     let zone_colours = settlements
         .iter()
-        .map(|_| [rng().random(), rng().random(), rng().random(), 50])
+        .map(|_| [rng().random(), rng().random(), rng().random(), 80])
         .collect::<Vec<[u8; 4]>>();
 
     let mut closest_zones = settlements
@@ -243,9 +243,15 @@ pub fn generate_world(
         }
     }
 
-    for (mut hex, zone) in closest_zones {
-        hex.x -= 1;
-        hex.y -= 1;
+    let edge_width = 0.8;
+    let edge_mesh = meshes.add(Rectangle::new(
+        world.layout.scale.x + (edge_width / 2.),
+        edge_width,
+    ));
+    let edge_material = materials.add(ColorMaterial::from_color(Color::BLACK));
+
+    for (hex, zone) in &closest_zones {
+        let on_hex = OnHex(Some(*hex - Hex::new(1, 1)));
 
         let colour = zone_colours[zone.zone];
         let mesh = match mesh_cache.entry(colour) {
@@ -266,9 +272,34 @@ pub fn generate_world(
         commands.spawn((
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material.clone()),
-            OnHex(Some(hex)),
+            on_hex,
             ZoneHighlight,
         ));
+
+        for neighbour in &hex.all_neighbors()[..3] {
+            if let Some(neighbour_zone) = closest_zones.get(&world.wrap(*neighbour)) {
+                if neighbour_zone.zone != zone.zone {
+                    let direction = hex.neighbor_direction(*neighbour).unwrap();
+                    let edge = GridEdge {
+                        origin: Hex::new(0, 0),
+                        direction,
+                    };
+
+                    let [a, b] = world.layout.edge_coordinates(edge);
+                    let midpoint = a.midpoint(b);
+                    let rotation = midpoint.perp().to_angle();
+
+                    commands.spawn((
+                        Mesh2d(edge_mesh.clone()),
+                        MeshMaterial2d(edge_material.clone()),
+                        on_hex,
+                        Transform::from_translation(midpoint.extend(1.))
+                            .with_rotation(Quat::from_rotation_z(rotation)),
+                        RenderOrder::Border,
+                    ));
+                }
+            }
+        }
     }
 
     commands.remove_resource::<WorldParams>();

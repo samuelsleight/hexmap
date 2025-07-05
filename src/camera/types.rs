@@ -6,6 +6,7 @@ pub enum RenderOrder {
     Terrain,
     InHex,
     Overlay,
+    Border,
 }
 
 #[derive(Clone, Copy, Component, Default, PartialEq, Eq, PartialOrd, Ord)]

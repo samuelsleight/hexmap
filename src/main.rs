@@ -34,6 +34,7 @@ fn setup_world(mut commands: Commands) {
 fn regenerate_world(mut commands: Commands, grid: Single<Entity, With<WorldOrigin>>) {
     commands.remove_resource::<WorldLayout>();
     commands.remove_resource::<WorldTiles>();
+    commands.insert_resource(CurrentOverlay::default());
     commands.entity(grid.into_inner()).despawn();
     setup_world(commands);
 }
@@ -71,9 +72,9 @@ fn indicators(
                 world
                     .edge_coordinates()
                     .into_iter()
-                    .map(|[a, _]| a)
-                    .chain(world.edge_coordinates().into_iter().take(2).map(|[a, _]| a))
-                    .map(|v| v + transform),
+                    .cycle()
+                    .take(8)
+                    .map(|[a, _]| a + transform),
                 Color::srgb(0.5, 0.5, 0.5),
             );
         }

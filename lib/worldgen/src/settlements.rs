@@ -47,7 +47,7 @@ pub fn generate(
 
     Poisson2D::new()
         .with_dimensions([width as f64, height as f64], move |[x, y]: [f64; 2]| {
-            let min_radius = 2.;
+            let min_radius = 3.;
             let max_radius = 10.;
 
             let hex = hex_fn(x as i32, y as i32);

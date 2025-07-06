@@ -7,12 +7,14 @@ use camera::{CameraPlugin, CurrentOverlay, OverlayMode};
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
 use selection::SelectionPlugin;
+use ui::UiPlugin;
 use world::{WorldLayout, WorldOrigin, WorldParams, WorldPlugin, WorldTiles};
 
 mod camera;
 mod input;
 mod profiling;
 mod selection;
+mod ui;
 mod world;
 
 fn setup_world(mut commands: Commands) {
@@ -70,6 +72,7 @@ pub fn main() {
         CameraPlugin,
         InputPlugin,
         SelectionPlugin,
+        UiPlugin,
     ))
     .add_systems(Startup, setup_world)
     .add_systems(Update, mode_toggle.run_if(resource_exists::<WorldLayout>))

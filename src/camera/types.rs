@@ -8,6 +8,7 @@ pub enum RenderOrder {
     Overlay,
     Selection,
     Border,
+    WorldUi,
 }
 
 #[derive(Clone, Copy, Component, Default, PartialEq, Eq, PartialOrd, Ord)]

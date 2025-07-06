@@ -9,7 +9,7 @@ use crate::camera::{OverlayMode, RenderOrder, VisibilityFlags};
 pub struct ZoneHighlight;
 
 #[derive(Copy, Clone, Default, Component)]
-#[require(VisibilityFlags)]
+#[require(VisibilityFlags, Transform)]
 pub struct OnHex(pub Option<Hex>);
 
 #[derive(Copy, Clone, Component)]
@@ -22,7 +22,7 @@ pub struct WorldColumn {
     pub column: i32,
 }
 
-#[derive(Resource)]
+#[derive(Clone, Resource)]
 pub struct WorldLayout {
     pub layout: HexLayout,
     pub width: i32,

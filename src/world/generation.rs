@@ -17,6 +17,7 @@ use hexmap_worldgen::{
 
 use crate::{
     camera::RenderOrder,
+    ui::SettlementUi,
     world::{OnHex, ZoneHighlight},
 };
 
@@ -96,6 +97,8 @@ pub fn generate_world(
         width: generated_terrain.width(),
         height: generated_terrain.height(),
     };
+
+    commands.insert_resource(world.clone());
 
     let material = materials.add(ColorMaterial::default());
 
@@ -178,7 +181,7 @@ pub fn generate_world(
         .map(|(index, hex)| (*hex, ClosestZone::new(index, NonZero::new(1).unwrap())))
         .collect::<HashMap<_, _>>();
 
-    for hex in settlements.iter() {
+    for (index, hex) in settlements.iter().enumerate() {
         let mut hex = *hex;
         hex.x -= 1;
         hex.y -= 1;
@@ -189,6 +192,8 @@ pub fn generate_world(
             MeshMaterial2d(settlement_material.clone()),
             OnHex(Some(hex)),
         ));
+
+        commands.spawn((SettlementUi(format!("Zone {}", index)), OnHex(Some(hex))));
     }
 
     let mut frontier = settlements;
@@ -307,5 +312,4 @@ pub fn generate_world(
 
     commands.remove_resource::<WorldParams>();
     commands.insert_resource(WorldTiles { tiles });
-    commands.insert_resource(world);
 }

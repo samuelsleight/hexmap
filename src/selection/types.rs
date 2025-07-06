@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use super::super::Indicator;
+use crate::{camera::RenderOrder, world::OnHex};
+
+#[derive(Default, Component)]
+#[require(OnHex, RenderOrder = RenderOrder::Selection)]
+pub struct Indicator;
 
 #[derive(Default, Component)]
 #[require(Indicator)]

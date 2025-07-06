@@ -6,6 +6,7 @@ pub enum RenderOrder {
     Terrain,
     InHex,
     Overlay,
+    Selection,
     Border,
 }
 

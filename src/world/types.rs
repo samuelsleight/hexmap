@@ -86,10 +86,6 @@ impl WorldLayout {
 
         hex
     }
-
-    pub fn edge_coordinates(&self) -> [[Vec2; 2]; 6] {
-        self.layout.all_edge_coordinates(self.hex(0, 0))
-    }
 }
 
 impl WorldTiles {

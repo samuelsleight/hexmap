@@ -133,7 +133,7 @@ pub fn generate_world(
                             Mesh::ATTRIBUTE_COLOR,
                             VertexAttributeValues::Float32x4(vec![
                                 colour.to_linear().to_f32_array();
-                                6
+                                mesh.count_vertices()
                             ]),
                         );
                         meshes.add(mesh)
@@ -262,7 +262,10 @@ pub fn generate_world(
                     let mut mesh = base_mesh.clone();
                     mesh.insert_attribute(
                         Mesh::ATTRIBUTE_COLOR,
-                        VertexAttributeValues::Float32x4(vec![colour.to_srgba().to_f32_array(); 6]),
+                        VertexAttributeValues::Float32x4(vec![
+                            colour.to_srgba().to_f32_array();
+                            mesh.count_vertices()
+                        ]),
                     );
                     meshes.add(mesh)
                 })

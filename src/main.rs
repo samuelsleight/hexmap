@@ -1,4 +1,7 @@
-use bevy::{input::common_conditions::input_just_released, prelude::*, window::PresentMode};
+use bevy::{
+    asset::AssetMetaCheck, input::common_conditions::input_just_released, prelude::*,
+    window::PresentMode,
+};
 
 #[cfg(feature = "remote")]
 use bevy::remote::{RemotePlugin, http::RemoteHttpPlugin};
@@ -59,17 +62,24 @@ fn mode_toggle(keyboard_input: Res<ButtonInput<KeyCode>>, mut mode: ResMut<Curre
 pub fn main() {
     let mut app = App::new();
 
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: "Hexmap".into(),
-            resolution: (1_000.0, 1_000.0).into(),
-            fit_canvas_to_parent: true,
-            present_mode: PresentMode::AutoNoVsync,
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
+                ..Default::default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Hexmap".into(),
+                    resolution: (1_000.0, 1_000.0).into(),
+                    fit_canvas_to_parent: true,
+                    present_mode: PresentMode::AutoNoVsync,
 
-            ..default()
-        }),
-        ..default()
-    }));
+                    ..default()
+                }),
+                ..default()
+            }),
+    );
 
     #[cfg(feature = "remote")]
     app.add_plugins(RemotePlugin::default())

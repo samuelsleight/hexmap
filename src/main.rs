@@ -3,6 +3,8 @@ use bevy::{input::common_conditions::input_just_released, prelude::*, window::Pr
 #[cfg(feature = "remote")]
 use bevy::remote::{RemotePlugin, http::RemoteHttpPlugin};
 
+use bevy_asset_loader::prelude::*;
+
 use camera::{CameraPlugin, CurrentOverlay, OverlayMode};
 use input::InputPlugin;
 use profiling::ProfilingPlugin;
@@ -16,6 +18,13 @@ mod profiling;
 mod selection;
 mod ui;
 mod world;
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, States)]
+pub enum AppState {
+    #[default]
+    Loading,
+    Main,
+}
 
 fn setup_world(mut commands: Commands) {
     // Request the world generation
@@ -66,6 +75,9 @@ pub fn main() {
     app.add_plugins(RemotePlugin::default())
         .add_plugins(RemoteHttpPlugin::default());
 
+    app.init_state::<AppState>()
+        .add_loading_state(LoadingState::new(AppState::Loading).continue_to_state(AppState::Main));
+
     app.add_plugins((
         ProfilingPlugin,
         WorldPlugin,
@@ -74,7 +86,7 @@ pub fn main() {
         SelectionPlugin,
         UiPlugin,
     ))
-    .add_systems(Startup, setup_world)
+    .add_systems(OnEnter(AppState::Main), setup_world)
     .add_systems(Update, mode_toggle.run_if(resource_exists::<WorldLayout>))
     .add_systems(
         PostUpdate,

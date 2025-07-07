@@ -7,8 +7,9 @@ use bevy::{
     render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
 };
 
+use bevy_common_assets::csv::LoadedCsv;
 use hexx::{GridEdge, Hex, HexLayout, PlaneMeshBuilder};
-use rand::{Rng, rng};
+use rand::{Rng, rng, seq::IndexedRandom};
 
 use hexmap_worldgen::{
     settlements::{self, SettlementParams},
@@ -18,7 +19,10 @@ use hexmap_worldgen::{
 use crate::{
     camera::RenderOrder,
     ui::SettlementUi,
-    world::{OnHex, ZoneHighlight},
+    world::{
+        OnHex, ZoneHighlight,
+        names::{SettlementName, SettlementNameAssets},
+    },
 };
 
 use super::{WorldColumn, WorldLayout, WorldOrigin, WorldParams, WorldTiles};
@@ -83,6 +87,8 @@ pub fn generate_world(
     params: Res<WorldParams>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    settlement_name_collection: Res<SettlementNameAssets>,
+    settlement_name_asset: Res<Assets<LoadedCsv<SettlementName>>>,
 ) {
     assert_eq!(size_of::<ClosestZone>(), size_of::<Option<ClosestZone>>());
 
@@ -181,7 +187,13 @@ pub fn generate_world(
         .map(|(index, hex)| (*hex, ClosestZone::new(index, NonZero::new(1).unwrap())))
         .collect::<HashMap<_, _>>();
 
-    for (index, hex) in settlements.iter().enumerate() {
+    let settlement_names = settlement_name_asset
+        .get(settlement_name_collection.names.id())
+        .unwrap()
+        .rows
+        .choose_multiple(&mut rand::rng(), settlements.len());
+
+    for (hex, name) in settlements.iter().zip(settlement_names) {
         let mut hex = *hex;
         hex.x -= 1;
         hex.y -= 1;
@@ -193,7 +205,7 @@ pub fn generate_world(
             OnHex(Some(hex)),
         ));
 
-        commands.spawn((SettlementUi(format!("Zone {}", index)), OnHex(Some(hex))));
+        commands.spawn((SettlementUi(name.name.clone()), OnHex(Some(hex))));
     }
 
     let mut frontier = settlements;

@@ -4,13 +4,13 @@ use bevy_common_assets::csv::CsvAssetPlugin;
 
 use crate::{
     AppState,
-    world::names::{SettlementName, SettlementNameAssets},
+    world::assets::{SettlementName, SettlementNames, WorldGenerationAssets},
 };
 
 pub use self::types::*;
 
+mod assets;
 mod generation;
-mod names;
 mod systems;
 mod types;
 
@@ -27,7 +27,8 @@ impl Plugin for WorldPlugin {
         app.add_plugins(CsvAssetPlugin::<SettlementName>::new(&["csv"]))
             .configure_loading_state(
                 LoadingStateConfig::new(AppState::Loading)
-                    .load_collection::<SettlementNameAssets>(),
+                    .load_collection::<WorldGenerationAssets>()
+                    .finally_init_resource::<SettlementNames>(),
             );
 
         app.add_systems(

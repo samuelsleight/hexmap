@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::AppState;
+
 use bevy::{
     ecs::system::{
         SystemParam,
@@ -71,6 +73,6 @@ impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.add_perf_ui_simple_entry::<DebugTile<HoverIndicator>>()
             .add_perf_ui_simple_entry::<DebugTile<SelectionIndicator>>()
-            .add_systems(PostStartup, setup_debug);
+            .add_systems(OnEnter(AppState::Main), setup_debug);
     }
 }
